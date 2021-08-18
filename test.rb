@@ -27,7 +27,7 @@ def repos_in_sync?(project)
     github_latest_commit_hash = `gh api repos/dxw-wordpress-plugins/#{project.name}/commits/main -q '.sha'`
     gitlab_commits = Gitlab.commits(project.id, per_page: 1)
     gitlab_latest_commit_hash = gitlab_commits[0].id
-    github_latest_commit_hash == gitlab_latest_commit_hash
+    github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
 end
 
 def mirror_gitlab_repo(project, create = false)
