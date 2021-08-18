@@ -1,6 +1,7 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    dotenv (2.7.6)
     gitlab (4.17.0)
       httparty (~> 0.18)
       terminal-table (~> 1.5, >= 1.5.1)
@@ -20,6 +21,7 @@ PLATFORMS
   universal-darwin-19
 
 DEPENDENCIES
+  dotenv
   gitlab
 
 BUNDLED WITH
