@@ -13,7 +13,7 @@ Gitlab.configure do |config|
 end
 
 def github_repo_exists?(project)
-    system("git ls-remote -q git@github.com:#{ENV['GITHUB_ORG_NAME']}/#{project.name}.git >/dev/null 2>&1")
+    system("git ls-remote -q #{construct_github_https_url(project)} >/dev/null 2>&1")
 end
 
 def gitlab_project_empty?(project)
@@ -28,10 +28,21 @@ def repos_in_sync?(project)
     github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
 end
 
+def construct_gitlab_https_url(project)
+    credentials = ENV['GITLAB_ACCOUNT_USERNAME'] + ':' + ENV['GITLAB_ACCOUNT_TOKEN'] + '@'
+    project.http_url_to_repo.insert(8, credentials)
+end
+
+def construct_github_https_url(project)
+    credentials = ENV['GITHUB_ACCOUNT_USERNAME'] + ':' + ENV['GITHUB_ACCOUNT_TOKEN'] + '@'
+    url = 'https://github.com/' + ENV['GITHUB_ORG_NAME'] + '/' + project.name + '.git'
+    url.insert(8, credentials)
+end
+
 def mirror_gitlab_repo(project, create = false)
     puts "Cloning the gitlab source..."
     # clone the gitlab repo
-    `git clone --mirror #{project.ssh_url_to_repo}`
+    `git clone --mirror #{construct_gitlab_https_url(project)}`
     # We can't give the remote a different name with mirror, so remove it
     `git -C #{project.name}.git remote remove origin`
     if (create)
@@ -40,12 +51,12 @@ def mirror_gitlab_repo(project, create = false)
     end
     puts "Updating the github repo..."
     # mirror push upstream    
-    `git -C #{project.name}.git push --mirror git@github.com:#{ENV['GITHUB_ORG_NAME']}/#{project.name}.git`
+    `git -C #{project.name}.git push --mirror #{construct_github_https_url(project)}`
     # clean up
     `rm -rf #{project.name}.git` 
 end
 
-projects = Gitlab.group_projects(ENV['GITLAB_WORDPRESS_PLUGINS_GROUP_ID'], per_page: 2)
+projects = Gitlab.group_projects(ENV['GITLAB_WORDPRESS_PLUGINS_GROUP_ID'], per_page: 6)
 
 projects.each do |project|
     puts "Checking status of #{project.name}..."
