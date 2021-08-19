@@ -1,92 +1,84 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
-require 'bundler/setup'
-require 'dotenv'
-require 'gitlab'
+require "rubygems"
+require "bundler/setup"
+require "dotenv"
+require "gitlab"
 
 Dotenv.load
 
 Gitlab.configure do |config|
-    config.endpoint       =  ENV['GITLAB_API_ENDPOINT']
-    config.private_token  =  ENV['GITLAB_ACCOUNT_TOKEN']
+  config.endpoint = ENV["GITLAB_API_ENDPOINT"]
+  config.private_token = ENV["GITLAB_ACCOUNT_TOKEN"]
 end
 
 def github_repo_exists?(project)
-    system("git ls-remote -q #{construct_github_https_url(project)} >/dev/null 2>&1")
+  system("git ls-remote -q #{construct_github_https_url(project)} >/dev/null 2>&1")
 end
 
 def gitlab_project_empty?(project)
-    gitlab_commits = Gitlab.commits(project.id, per_page: 1)
-    gitlab_commits.empty?
+  gitlab_commits = Gitlab.commits(project.id, per_page: 1)
+  gitlab_commits.empty?
 end
 
 def repos_in_sync?(project)
-    github_latest_commit_hash = `gh api repos/#{ENV['GITHUB_ORG_NAME']}/#{project.name}/commits/#{ENV['DEFAULT_BRANCH_NAME']} -q '.sha'`
-    gitlab_commits = Gitlab.commits(project.id, per_page: 1)
-    gitlab_latest_commit_hash = gitlab_commits[0].id
-    github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
+  github_latest_commit_hash = `gh api repos/#{ENV["GITHUB_ORG_NAME"]}/#{project.name}/commits/#{ENV["DEFAULT_BRANCH_NAME"]} -q '.sha'`
+  gitlab_commits = Gitlab.commits(project.id, per_page: 1)
+  gitlab_latest_commit_hash = gitlab_commits[0].id
+  github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
 end
 
 def construct_gitlab_https_url(project)
-    credentials = ENV['GITLAB_ACCOUNT_USERNAME'] + ':' + ENV['GITLAB_ACCOUNT_TOKEN'] + '@'
-    project.http_url_to_repo.insert(8, credentials)
+  credentials = ENV["GITLAB_ACCOUNT_USERNAME"] + ":" + ENV["GITLAB_ACCOUNT_TOKEN"] + "@"
+  project.http_url_to_repo.insert(8, credentials)
 end
 
 def construct_github_https_url(project)
-    credentials = ENV['GITHUB_ACCOUNT_USERNAME'] + ':' + ENV['GITHUB_ACCOUNT_TOKEN'] + '@'
-    url = 'https://github.com/' + ENV['GITHUB_ORG_NAME'] + '/' + project.name + '.git'
-    url.insert(8, credentials)
+  credentials = ENV["GITHUB_ACCOUNT_USERNAME"] + ":" + ENV["GITHUB_ACCOUNT_TOKEN"] + "@"
+  url = "https://github.com/" + ENV["GITHUB_ORG_NAME"] + "/" + project.name + ".git"
+  url.insert(8, credentials)
 end
 
 def mirror_gitlab_repo(project, create = false)
-    puts "Cloning the gitlab source..."
-    `git clone --mirror #{construct_gitlab_https_url(project)}`
-    if (create)
-        # GitHub cli automatically assigns an origin remote when creating a repo
-        # So we need to remove the existing GitLab origin first
-        `git -C #{project.name}.git remote remove origin`
-        puts "Creating the github repo..."
-        `gh repo create #{ENV['GITHUB_ORG_NAME']}/#{project.name} --private --team #{ENV['GITHUB_TEAM_NAME']} -y`
-    end
-    puts "Updating the github repo..."
-    `git -C #{project.name}.git push --mirror #{construct_github_https_url(project)}`
-    # clean up
-    `rm -rf #{project.name}.git` 
+  puts "Cloning the gitlab source..."
+  `git clone --mirror #{construct_gitlab_https_url(project)}`
+  if create
+    # GitHub cli automatically assigns an origin remote when creating a repo
+    # So we need to remove the existing GitLab origin first
+    `git -C #{project.name}.git remote remove origin`
+    puts "Creating the github repo..."
+    `gh repo create #{ENV["GITHUB_ORG_NAME"]}/#{project.name} --private --team #{ENV["GITHUB_TEAM_NAME"]} -y`
+  end
+  puts "Updating the github repo..."
+  `git -C #{project.name}.git push --mirror #{construct_github_https_url(project)}`
+  # clean up
+  `rm -rf #{project.name}.git`
 end
 
-projects = Gitlab.group_projects(ENV['GITLAB_WORDPRESS_PLUGINS_GROUP_ID'], per_page: 50)
+projects = Gitlab.group_projects(ENV["GITLAB_WORDPRESS_PLUGINS_GROUP_ID"], per_page: 50)
 
 projects.auto_paginate do |project|
-    puts "Checking status of #{project.name}..."
+  puts "Checking status of #{project.name}..."
 
-    if (github_repo_exists?(project))
-        puts "#{project.name} repo already exists"    
-        if (gitlab_project_empty?(project))
-            puts "...but source repo is empty"
-            next project
-        end
-        if (repos_in_sync?(project))
-            puts "...and is in sync"
-            next project
-        end
-        puts "... mirroring to it now"
-        mirror_gitlab_repo(project)
-    else
-        puts "#{project.name} repo does not exist"
-        if (gitlab_project_empty?(project))
-            puts "...but source repo is empty"
-            next project
-        end
-        puts "...creating and mirroring to it now"
-        mirror_gitlab_repo(project, true)    
+  if github_repo_exists?(project)
+    puts "#{project.name} repo already exists"
+    if gitlab_project_empty?(project)
+      puts "...but source repo is empty"
+      next project
     end
-
+    if repos_in_sync?(project)
+      puts "...and is in sync"
+      next project
+    end
+    puts "... mirroring to it now"
+    mirror_gitlab_repo(project)
+  else
+    puts "#{project.name} repo does not exist"
+    if gitlab_project_empty?(project)
+      puts "...but source repo is empty"
+      next project
+    end
+    puts "...creating and mirroring to it now"
+    mirror_gitlab_repo(project, true)
+  end
 end
-
-
-
-
-
-
-
