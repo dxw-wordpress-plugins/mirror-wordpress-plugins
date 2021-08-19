@@ -41,16 +41,15 @@ end
 
 def mirror_gitlab_repo(project, create = false)
     puts "Cloning the gitlab source..."
-    # clone the gitlab repo
     `git clone --mirror #{construct_gitlab_https_url(project)}`
-    # We can't give the remote a different name with mirror, so remove it
-    `git -C #{project.name}.git remote remove origin`
     if (create)
+        # GitHub cli automatically assigns an origin remote when creating a repo
+        # So we need to remove the existing GitLab origin first
+        `git -C #{project.name}.git remote remove origin`
         puts "Creating the github repo..."
         `gh repo create #{ENV['GITHUB_ORG_NAME']}/#{project.name} --private --team #{ENV['GITHUB_TEAM_NAME']} -y`
     end
     puts "Updating the github repo..."
-    # mirror push upstream    
     `git -C #{project.name}.git push --mirror #{construct_github_https_url(project)}`
     # clean up
     `rm -rf #{project.name}.git` 
@@ -60,7 +59,7 @@ projects = Gitlab.group_projects(ENV['GITLAB_WORDPRESS_PLUGINS_GROUP_ID'], per_p
 
 projects.each do |project|
     puts "Checking status of #{project.name}..."
-    # check if the repo already exists on github
+
     if (github_repo_exists?(project))
         puts "#{project.name} repo already exists"    
         if (gitlab_project_empty?(project))
@@ -74,8 +73,6 @@ projects.each do |project|
         puts "... mirroring to it now"
         mirror_gitlab_repo(project)
     else
-        # if it doesn't, create it
-        # and add the govpress team to it
         puts "#{project.name} repo does not exist"
         if (gitlab_project_empty?(project))
             puts "...but source repo is empty"
