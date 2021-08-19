@@ -9,7 +9,7 @@ Dotenv.load
 
 Gitlab.configure do |config|
     config.endpoint       =  ENV['GITLAB_API_ENDPOINT']
-    config.private_token  =  ENV['GITLAB_API_PRIVATE_TOKEN']
+    config.private_token  =  ENV['GITLAB_ACCOUNT_TOKEN']
 end
 
 def github_repo_exists?(project)
