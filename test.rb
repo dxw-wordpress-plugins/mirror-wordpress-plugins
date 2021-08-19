@@ -7,15 +7,13 @@ require 'gitlab'
 
 Dotenv.load
 
-# TODO: authenticate with github (or do this in the github action, and just check it here)
-
 Gitlab.configure do |config|
     config.endpoint       =  ENV['GITLAB_API_ENDPOINT']
     config.private_token  =  ENV['GITLAB_API_PRIVATE_TOKEN']
 end
 
 def github_repo_exists?(project)
-    system("git ls-remote -q git@github.com:dxw-wordpress-plugins/#{project.name}.git >/dev/null 2>&1")
+    system("git ls-remote -q git@github.com:#{ENV['GITHUB_ORG_NAME']}/#{project.name}.git >/dev/null 2>&1")
 end
 
 def gitlab_project_empty?(project)
@@ -24,7 +22,7 @@ def gitlab_project_empty?(project)
 end
 
 def repos_in_sync?(project)
-    github_latest_commit_hash = `gh api repos/dxw-wordpress-plugins/#{project.name}/commits/main -q '.sha'`
+    github_latest_commit_hash = `gh api repos/#{ENV['GITHUB_ORG_NAME']}/#{project.name}/commits/#{ENV['DEFAULT_BRANCH_NAME']} -q '.sha'`
     gitlab_commits = Gitlab.commits(project.id, per_page: 1)
     gitlab_latest_commit_hash = gitlab_commits[0].id
     github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
@@ -38,11 +36,11 @@ def mirror_gitlab_repo(project, create = false)
     `git -C #{project.name}.git remote remove origin`
     if (create)
         puts "Creating the github repo..."
-        `gh repo create dxw-wordpress-plugins/#{project.name} --private --team govpress-team -y`
+        `gh repo create #{ENV['GITHUB_ORG_NAME']}/#{project.name} --private --team #{ENV['GITHUB_TEAM_NAME']} -y`
     end
     puts "Updating the github repo..."
     # mirror push upstream    
-    `git -C #{project.name}.git push --mirror git@github.com:dxw-wordpress-plugins/#{project.name}.git`
+    `git -C #{project.name}.git push --mirror git@github.com:#{ENV['GITHUB_ORG_NAME']}/#{project.name}.git`
     # clean up
     `rm -rf #{project.name}.git` 
 end
