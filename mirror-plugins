@@ -55,9 +55,9 @@ def mirror_gitlab_repo(project, create = false)
     `rm -rf #{project.name}.git` 
 end
 
-projects = Gitlab.group_projects(ENV['GITLAB_WORDPRESS_PLUGINS_GROUP_ID'], per_page: 6)
+projects = Gitlab.group_projects(ENV['GITLAB_WORDPRESS_PLUGINS_GROUP_ID'], per_page: 50)
 
-projects.each do |project|
+projects.auto_paginate do |project|
     puts "Checking status of #{project.name}..."
 
     if (github_repo_exists?(project))
