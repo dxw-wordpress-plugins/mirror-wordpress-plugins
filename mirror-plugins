@@ -27,25 +27,25 @@ class Plugin
   end
 
   def repos_in_sync?
-    github_latest_commit_hash = `gh api repos/#{ENV["GITHUB_ORG_NAME"]}/#{@project.name}/commits/#{ENV["DEFAULT_BRANCH_NAME"]} -q '.sha'`
+    github_latest_commit_hash = `gh api repos/#{ENV.fetch("GITHUB_ORG_NAME")}/#{@project.name}/commits/#{ENV.fetch("DEFAULT_BRANCH_NAME")} -q '.sha'`
     gitlab_latest_commit_hash = latest_gitlab_commit[0].id
     github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
   end
 
   def construct_gitlab_https_url
-    credentials = ENV["GITLAB_ACCOUNT_USERNAME"] + ":" + ENV["GITLAB_ACCOUNT_TOKEN"] + "@"
+    credentials = ENV.fetch("GITLAB_ACCOUNT_USERNAME") + ":" + ENV.fetch("GITLAB_ACCOUNT_TOKEN") + "@"
     @project.http_url_to_repo.insert(8, credentials)
   end
 
   def construct_github_https_url
-    credentials = ENV["GITHUB_ACCOUNT_USERNAME"] + ":" + ENV["GITHUB_ACCOUNT_TOKEN"] + "@"
-    url = "https://github.com/" + ENV["GITHUB_ORG_NAME"] + "/" + @project.name + ".git"
+    credentials = ENV.fetch("GITHUB_ACCOUNT_USERNAME") + ":" + ENV.fetch("GITHUB_ACCOUNT_TOKEN") + "@"
+    url = "https://github.com/" + ENV.fetch("GITHUB_ORG_NAME") + "/" + @project.name + ".git"
     url.insert(8, credentials)
   end
 
   def create_github_repo
     puts "Creating the github repo..."
-    `gh api -X POST orgs/#{ENV["GITHUB_ORG_NAME"]}/repos -f name="#{@project.name}" -f visibility=private -f team_id=#{ENV["GITHUB_TEAM_ID"]} -H accept:application/vnd.github.nebula-preview+json`
+    `gh api -X POST orgs/#{ENV.fetch("GITHUB_ORG_NAME")}/repos -f name="#{@project.name}" -f visibility=private -f team_id=#{ENV.fetch("GITHUB_TEAM_ID")} -H accept:application/vnd.github.nebula-preview+json`
   end
 
   def update_github_mirror
@@ -59,11 +59,11 @@ class Plugin
 end
 
 Gitlab.configure do |config|
-  config.endpoint = ENV["GITLAB_API_ENDPOINT"]
-  config.private_token = ENV["GITLAB_ACCOUNT_TOKEN"]
+  config.endpoint = ENV.fetch("GITLAB_API_ENDPOINT")
+  config.private_token = ENV.fetch("GITLAB_ACCOUNT_TOKEN")
 end
 
-projects = Gitlab.group_projects(ENV["GITLAB_WORDPRESS_PLUGINS_GROUP_ID"], per_page: 50)
+projects = Gitlab.group_projects(ENV.fetch("GITLAB_WORDPRESS_PLUGINS_GROUP_ID"), per_page: 50)
 
 projects.auto_paginate do |project|
   puts "Checking status of #{project.name}..."
