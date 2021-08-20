@@ -41,13 +41,14 @@ class Plugin
     url.insert(8, credentials)
   end
 
-  def mirror_gitlab_repo(create = false)
+  def create_github_repo
+    puts "Creating the github repo..."
+    `gh api -X POST orgs/#{ENV["GITHUB_ORG_NAME"]}/repos -f name="#{@project.name}" -f visibility=private -f team_id=#{ENV["GITHUB_TEAM_ID"]} -H accept:application/vnd.github.nebula-preview+json`
+  end
+
+  def update_github_mirror
     puts "Cloning the gitlab source..."
     `git clone --mirror #{construct_gitlab_https_url}`
-    if create
-      puts "Creating the github repo..."
-      `gh api -X POST orgs/#{ENV["GITHUB_ORG_NAME"]}/repos -f name="#{@project.name}" -f visibility=private -f team_id=#{ENV["GITHUB_TEAM_ID"]} -H accept:application/vnd.github.nebula-preview+json`
-    end
     puts "Updating the github repo..."
     `git -C #{@project.name}.git push --mirror #{construct_github_https_url}`
     # clean up
@@ -78,7 +79,6 @@ projects.auto_paginate do |project|
       next project
     end
     puts "... mirroring to it now"
-    plugin.mirror_gitlab_repo
   else
     puts "#{plugin.project.name} repo does not exist"
     if plugin.gitlab_project_empty?
@@ -86,6 +86,7 @@ projects.auto_paginate do |project|
       next project
     end
     puts "...creating and mirroring to it now"
-    plugin.mirror_gitlab_repo(true)
+    plugin.create_github_repo
   end
+  plugin.update_github_mirror
 end
