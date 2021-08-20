@@ -14,19 +14,21 @@ class Plugin
     @project = project
   end
 
+  def latest_gitlab_commit
+    @gitlab_commits ||= Gitlab.commits(@project.id, per_page: 1)
+  end
+
   def github_repo_exists?
     system("git ls-remote -q #{construct_github_https_url} >/dev/null 2>&1")
   end
 
   def gitlab_project_empty?
-    gitlab_commits = Gitlab.commits(@project.id, per_page: 1)
-    gitlab_commits.empty?
+    latest_gitlab_commit.empty?
   end
 
   def repos_in_sync?
     github_latest_commit_hash = `gh api repos/#{ENV["GITHUB_ORG_NAME"]}/#{@project.name}/commits/#{ENV["DEFAULT_BRANCH_NAME"]} -q '.sha'`
-    gitlab_commits = Gitlab.commits(@project.id, per_page: 1)
-    gitlab_latest_commit_hash = gitlab_commits[0].id
+    gitlab_latest_commit_hash = latest_gitlab_commit[0].id
     github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
   end
 
