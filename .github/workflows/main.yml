@@ -39,6 +39,6 @@ jobs:
           GITLAB_WORDPRESS_PLUGINS_GROUP_ID: ${{ secrets.GITLAB_WORDPRESS_PLUGINS_GROUP_ID }}
           GITHUB_ORG_NAME: ${{ secrets.GITHUB_ORG_NAME }}
           DEFAULT_BRANCH_NAME: ${{ secrets.DEFAULT_BRANCH_NAME }}
-          GITHUB_TEAM_NAME: ${{ secrets.GITHUB_TEAM_NAME }}
+          GITHUB_TEAM_ID: ${{ secrets.GITHUB_TEAM_ID }}
         run: |
           ./mirror-plugins

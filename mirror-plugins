@@ -45,11 +45,8 @@ class Plugin
     puts "Cloning the gitlab source..."
     `git clone --mirror #{construct_gitlab_https_url}`
     if create
-      # GitHub cli automatically assigns an origin remote when creating a repo
-      # So we need to remove the existing GitLab origin first
-      `git -C #{@project.name}.git remote remove origin`
       puts "Creating the github repo..."
-      `gh repo create #{ENV["GITHUB_ORG_NAME"]}/#{@project.name} --private --team #{ENV["GITHUB_TEAM_NAME"]} -y`
+      `gh api -X POST orgs/#{ENV["GITHUB_ORG_NAME"]}/repos -f name="#{@project.name}" -f visibility=private -f team_id=#{ENV["GITHUB_TEAM_ID"]} -H accept:application/vnd.github.nebula-preview+json`
     end
     puts "Updating the github repo..."
     `git -C #{@project.name}.git push --mirror #{construct_github_https_url}`
