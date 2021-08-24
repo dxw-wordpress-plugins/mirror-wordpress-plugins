@@ -2,7 +2,7 @@ name: Mirror GitLab plugins to GitHub
 
 on:
   schedule:
-    - cron: 0 0,12 0 0 0
+    - cron: 0 0,12 * * *
 
 jobs:
   mirror-gitlab-plugins:
