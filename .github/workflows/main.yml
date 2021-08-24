@@ -1,0 +1,44 @@
+name: Mirror GitLab plugins to GitHub
+
+on:
+  schedule:
+    - cron: 0 0,12 0 0 0
+
+jobs:
+  mirror-gitlab-plugins:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      - name: Ruby setup
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+      
+      - name: install GitHub CLI for local testing
+        if: ${{ env.ACT }}
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh  
+      
+      - name: Authenticate with GitHub CLI
+        run: |
+          echo "${{ secrets.GH_ACCOUNT_TOKEN }}" | gh auth login --with-token
+
+      - name: Mirror GitLab repos
+        env:
+          GITLAB_API_ENDPOINT: ${{ secrets.GITLAB_API_ENDPOINT }}
+          GITLAB_ACCOUNT_USERNAME: ${{ secrets.GITLAB_ACCOUNT_USERNAME }}
+          GITLAB_ACCOUNT_TOKEN: ${{ secrets.GITLAB_ACCOUNT_TOKEN }}
+          GH_ACCOUNT_USERNAME: ${{ secrets.GH_ACCOUNT_USERNAME }}
+          GH_ACCOUNT_TOKEN: ${{ secrets.GH_ACCOUNT_TOKEN }}
+          GITLAB_WORDPRESS_PLUGINS_GROUP_ID: ${{ secrets.GITLAB_WORDPRESS_PLUGINS_GROUP_ID }}
+          GH_ORG_NAME: ${{ secrets.GH_ORG_NAME }}
+          DEFAULT_BRANCH_NAME: ${{ secrets.DEFAULT_BRANCH_NAME }}
+          GH_TEAM_ID: ${{ secrets.GH_TEAM_ID }}
+        run: |
+          ./mirror-plugins

@@ -1,2 +1,4 @@
-source 'https://rubygems.org'
-gem 'gitlab'
+source "https://rubygems.org"
+gem "gitlab"
+gem "dotenv"
+gem "standardrb"

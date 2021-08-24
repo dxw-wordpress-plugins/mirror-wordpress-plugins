@@ -1,0 +1,94 @@
+#!/usr/bin/env ruby
+
+require "rubygems"
+require "bundler/setup"
+require "dotenv"
+require "gitlab"
+
+Dotenv.load
+
+class Plugin
+  attr_reader :project
+
+  def initialize(project)
+    @project = project
+  end
+
+  def latest_gitlab_commit
+    @gitlab_commits ||= Gitlab.commits(@project.id, per_page: 1)
+  end
+
+  def github_repo_exists?
+    system("git ls-remote -q #{construct_github_https_url} >/dev/null 2>&1")
+  end
+
+  def gitlab_project_empty?
+    latest_gitlab_commit.empty?
+  end
+
+  def repos_in_sync?
+    github_latest_commit_hash = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@project.name}/commits/#{ENV.fetch("DEFAULT_BRANCH_NAME")} -q '.sha'`
+    gitlab_latest_commit_hash = latest_gitlab_commit[0].id
+    github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
+  end
+
+  def construct_gitlab_https_url
+    credentials = ENV.fetch("GITLAB_ACCOUNT_USERNAME") + ":" + ENV.fetch("GITLAB_ACCOUNT_TOKEN") + "@"
+    @project.http_url_to_repo.insert(8, credentials)
+  end
+
+  def construct_github_https_url
+    credentials = ENV.fetch("GH_ACCOUNT_USERNAME") + ":" + ENV.fetch("GH_ACCOUNT_TOKEN") + "@"
+    url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @project.name + ".git"
+    url.insert(8, credentials)
+  end
+
+  def create_github_repo
+    puts "Creating the github repo..."
+    `gh api -X POST orgs/#{ENV.fetch("GH_ORG_NAME")}/repos -f name="#{@project.name}" -f visibility=private -f team_id=#{ENV.fetch("GH_TEAM_ID")} -H accept:application/vnd.github.nebula-preview+json`
+  end
+
+  def update_github_mirror
+    puts "Cloning the gitlab source..."
+    `git clone --mirror #{construct_gitlab_https_url}`
+    puts "Updating the github repo..."
+    `git -C #{@project.name}.git push --mirror #{construct_github_https_url}`
+    # clean up
+    `rm -rf #{@project.name}.git`
+  end
+end
+
+Gitlab.configure do |config|
+  config.endpoint = ENV.fetch("GITLAB_API_ENDPOINT")
+  config.private_token = ENV.fetch("GITLAB_ACCOUNT_TOKEN")
+end
+
+projects = Gitlab.group_projects(ENV.fetch("GITLAB_WORDPRESS_PLUGINS_GROUP_ID"), per_page: 50)
+
+projects.auto_paginate do |project|
+  puts "Checking status of #{project.name}..."
+
+  plugin = Plugin.new(project)
+
+  if plugin.github_repo_exists?
+    puts "#{plugin.project.name} repo already exists"
+    if plugin.gitlab_project_empty?
+      puts "...but source repo is empty"
+      next project
+    end
+    if plugin.repos_in_sync?
+      puts "...and is in sync"
+      next project
+    end
+    puts "... mirroring to it now"
+  else
+    puts "#{plugin.project.name} repo does not exist"
+    if plugin.gitlab_project_empty?
+      puts "...but source repo is empty"
+      next project
+    end
+    puts "...creating and mirroring to it now"
+    plugin.create_github_repo
+  end
+  plugin.update_github_mirror
+end
