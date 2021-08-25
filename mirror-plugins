@@ -19,7 +19,7 @@ class Plugin
   end
 
   def github_repo_exists?
-    system("git ls-remote -q #{construct_github_https_url} >/dev/null 2>&1")
+    `curl -s -w "%{http_code}" -I -H "Authorization: token #{ENV.fetch("GH_ACCOUNT_TOKEN")}" https://api.github.com/repos/#{ENV.fetch("GH_ORG_NAME")}/#{@project.path} -o /dev/null` == "200"
   end
 
   def gitlab_project_empty?
