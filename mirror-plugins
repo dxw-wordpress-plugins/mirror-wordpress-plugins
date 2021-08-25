@@ -27,7 +27,7 @@ class Plugin
   end
 
   def repos_in_sync?
-    github_latest_commit_hash = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@project.name}/commits/#{ENV.fetch("DEFAULT_BRANCH_NAME")} -q '.sha'`
+    github_latest_commit_hash = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@project.path}/commits/#{ENV.fetch("DEFAULT_BRANCH_NAME")} -q '.sha'`
     gitlab_latest_commit_hash = latest_gitlab_commit[0].id
     github_latest_commit_hash.strip == gitlab_latest_commit_hash.strip
   end
@@ -39,22 +39,22 @@ class Plugin
 
   def construct_github_https_url
     credentials = ENV.fetch("GH_ACCOUNT_USERNAME") + ":" + ENV.fetch("GH_ACCOUNT_TOKEN") + "@"
-    url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @project.name + ".git"
+    url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @project.path + ".git"
     url.insert(8, credentials)
   end
 
   def create_github_repo
     puts "Creating the github repo..."
-    `gh api -X POST orgs/#{ENV.fetch("GH_ORG_NAME")}/repos -f name="#{@project.name}" -f visibility=private -f team_id=#{ENV.fetch("GH_TEAM_ID")} -H accept:application/vnd.github.nebula-preview+json`
+    `gh api -X POST orgs/#{ENV.fetch("GH_ORG_NAME")}/repos -f name="#{@project.path}" -f visibility=private -f team_id=#{ENV.fetch("GH_TEAM_ID")} -H accept:application/vnd.github.nebula-preview+json`
   end
 
   def update_github_mirror
     puts "Cloning the gitlab source..."
     `git clone --mirror #{construct_gitlab_https_url}`
     puts "Updating the github repo..."
-    `git -C #{@project.name}.git push --mirror #{construct_github_https_url}`
+    `git -C #{@project.path}.git push --mirror #{construct_github_https_url}`
     # clean up
-    `rm -rf #{@project.name}.git`
+    `rm -rf #{@project.path}.git`
   end
 end
 
