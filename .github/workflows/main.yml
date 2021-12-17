@@ -42,3 +42,10 @@ jobs:
           GH_TEAM_ID: ${{ secrets.GH_TEAM_ID }}
         run: |
           ./mirror-plugins
+
+      - name: Keep workflow alive
+        uses: dxw/keepalive-workflow@master
+        with:
+          commit_message: Automated commit by Keepalive Workflow to keep the repository active [skip ci]
+          committer_username: dxw-govpress-tools
+          committer_email: team+govpress-tools@govpress.com
