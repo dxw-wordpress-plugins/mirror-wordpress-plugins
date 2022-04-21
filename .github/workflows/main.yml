@@ -44,7 +44,7 @@ jobs:
           ./mirror-plugins
 
       - name: Keep workflow alive
-        uses: dxw/keepalive-workflow@master
+        uses: gautamkrishnar/keepalive-workflow@c85efc9567a3dadb9b9d4e116aa891f76c0ef7e6
         with:
           commit_message: Automated commit by Keepalive Workflow to keep the repository active [skip ci]
           committer_username: dxw-govpress-tools
