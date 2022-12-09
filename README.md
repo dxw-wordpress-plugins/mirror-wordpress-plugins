@@ -4,7 +4,17 @@ This repo includes a GitHub action that runs on a schedule, mirroring all the 3r
 
 Having both the plugins and application repos hosted on GitHub will make it much easier for us to report accurately on what versions of plugins we're running across our WordPress estate.
 
-The mirrored repos hosted on GitHub are intended to be read-only, and we will still be deploying from the GitLab-hosted versions.
+All Dalmatian-hosted sites have access to the plugins in the `dxw-wordpress-plugins` org, and should be configured in their `whippet.json` file to use those, rather than their GitLab equivalents. Projects on GovPress v1 architecture still use the GitLab-hosted versions.
+
+## Potential causes of workflow failure
+
+Occasionally, the action will fail. When it does so, it will alert the GovPress Team channel (set by the `SLACK_CHANNEL_ID` secret) via the GovPress Tools Slackbot (set via `SLACK_BOT_TOKEN`).
+
+There are a couple of commons causes for failures:
+
+1. The code assumes that the default branch for GitLab repos will match the value of the `DEFAULT_BRANCH_NAME` secret (currently set to `master`). If this is not the case (or if the `DEFAULT_BRANCH_NAME` branch does exist, but is not the default branch), the workflow may fail. Potential fix: make the expected branch the default for the GitLab repo in question.
+
+1. The connection to GitLab times out, or returns some other unexpected response. This is normally a temporary glitch, and will resolve itself on the next workflow run.
 
 ## Testing locally
 
