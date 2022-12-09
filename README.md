@@ -4,7 +4,7 @@ This repo includes a GitHub action that runs on a schedule, mirroring all the 3r
 
 Having both the plugins and application repos hosted on GitHub will make it much easier for us to report accurately on what versions of plugins we're running across our WordPress estate.
 
-The mirrored repos hosted on GitHub are intended to be read-only, and we will still be deploying from the GitLab-hosted versions.
+All Dalmatian-hosted sites have access to the plugins in the `dxw-wordpress-plugins` org, and should be configured in their `whippet.json` file to use those, rather than their GitLab equivalents. Projects on GovPress v1 architecture still use the GitLab-hosted versions.
 
 ## Potential causes of workflow failure
 
