@@ -6,6 +6,14 @@ Having both the plugins and application repos hosted on GitHub will make it much
 
 The mirrored repos hosted on GitHub are intended to be read-only, and we will still be deploying from the GitLab-hosted versions.
 
+## Potential causes of workflow failure
+
+Occasionally, the action will fail. There are a couple of commons causes for this:
+
+1. The code assumes that the default branch for GitLab repos will match the value of the `DEFAULT_BRANCH_NAME` secret (currently set to `master`). If this is not the case (or if the `DEFAULT_BRANCH_NAME` branch does exist, but is not the default branch), the workflow may fail. Potential fix: make the expected branch the default for the GitLab repo in question.
+
+1. The connection to GitLab times out, or returns some other unexpected response. This is normally a temporary glitch, and will resolve itself on the next workflow run.
+
 ## Testing locally
 
 You can test the action locally using [act](https://github.com/nektos/act).
