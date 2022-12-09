@@ -8,7 +8,9 @@ The mirrored repos hosted on GitHub are intended to be read-only, and we will st
 
 ## Potential causes of workflow failure
 
-Occasionally, the action will fail. There are a couple of commons causes for this:
+Occasionally, the action will fail. When it does so, it will alert the GovPress Team channel (set by the `SLACK_CHANNEL_ID` secret) via the GovPress Tools Slackbot (set via `SLACK_BOT_TOKEN`).
+
+There are a couple of commons causes for failures:
 
 1. The code assumes that the default branch for GitLab repos will match the value of the `DEFAULT_BRANCH_NAME` secret (currently set to `master`). If this is not the case (or if the `DEFAULT_BRANCH_NAME` branch does exist, but is not the default branch), the workflow may fail. Potential fix: make the expected branch the default for the GitLab repo in question.
 

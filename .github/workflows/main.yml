@@ -49,3 +49,12 @@ jobs:
           commit_message: Automated commit by Keepalive Workflow to keep the repository active [skip ci]
           committer_username: dxw-govpress-tools
           committer_email: team+govpress-tools@govpress.com
+      
+      - name: Alert Slack if failure
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}  # Slack channel id to post message
+          slack-message: "The scheduled task to mirror GitLab plugins to GitHub has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/main.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
