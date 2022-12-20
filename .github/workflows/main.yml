@@ -10,21 +10,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      
+        uses: actions/checkout@v3
+
       - name: Ruby setup
         uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-      
+
       - name: install GitHub CLI for local testing
         if: ${{ env.ACT }}
         run: |
           curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
           sudo apt update
-          sudo apt install gh  
-      
+          sudo apt install gh
+
       - name: Authenticate with GitHub CLI
         run: |
           echo "${{ secrets.GH_ACCOUNT_TOKEN }}" | gh auth login --with-token
@@ -49,7 +49,7 @@ jobs:
           commit_message: Automated commit by Keepalive Workflow to keep the repository active [skip ci]
           committer_username: dxw-govpress-tools
           committer_email: team+govpress-tools@govpress.com
-      
+
       - name: Alert Slack if failure
         if: ${{ failure() }}
         uses: slackapi/slack-github-action@v1.23.0
