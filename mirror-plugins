@@ -56,6 +56,7 @@ class Plugin
     if $?.exitstatus == 0
       split_tag = full_tag.split(".")
       major_tag = split_tag[0]
+      major_tag.prepend("v") unless major_tag.start_with?("v")
       puts "Tagging latest commit with major version tag of #{major_tag}"
       `git -C #{@project.path}.git tag -f #{major_tag}`
     else
