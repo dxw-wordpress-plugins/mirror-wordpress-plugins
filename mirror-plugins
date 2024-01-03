@@ -58,9 +58,17 @@ class Plugin
   end
 end
 
+def dry_run?
+  ENV["DRY_RUN"] == "true"
+end
+
 Gitlab.configure do |config|
   config.endpoint = ENV.fetch("GITLAB_API_ENDPOINT")
   config.private_token = ENV.fetch("GITLAB_ACCOUNT_TOKEN")
+end
+
+if dry_run?
+  puts "-- Dry run mode --"
 end
 
 projects = Gitlab.group_projects(ENV.fetch("GITLAB_WORDPRESS_PLUGINS_GROUP_ID"), per_page: 50)
@@ -88,7 +96,15 @@ projects.auto_paginate do |project|
       next project
     end
     puts "...creating and mirroring to it now"
-    plugin.create_github_repo
+    if dry_run?
+      puts "-- Dry run mode, no repo creation taking place --"
+    else
+      plugin.create_github_repo
+    end
   end
-  plugin.update_github_mirror
+  if dry_run?
+    puts "-- Dry run mode, no repo mirroring taking place --"
+  else
+    plugin.update_github_mirror
+  end
 end
