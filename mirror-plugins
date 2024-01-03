@@ -77,6 +77,10 @@ def dry_run?
   ENV["DRY_RUN"] == "true"
 end
 
+def force_update?
+  ENV["FORCE_UPDATE"] == "true"
+end
+
 Gitlab.configure do |config|
   config.endpoint = ENV.fetch("GITLAB_API_ENDPOINT")
   config.private_token = ENV.fetch("GITLAB_ACCOUNT_TOKEN")
@@ -101,7 +105,7 @@ projects.auto_paginate do |project|
     end
     if plugin.repos_in_sync?
       puts "...and is in sync"
-      next project
+      next project unless force_update?
     end
     puts "... mirroring to it now"
   else
