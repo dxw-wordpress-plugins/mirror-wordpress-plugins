@@ -33,6 +33,12 @@ Then run the action with:
 act -j mirror-gitlab-plugins --secret-file .env
 ```
 
+If you're using a machine with an ARM-based processor, you may need to do:
+
+```
+act -j mirror-gitlab-plugins --secret-file .env --container-architecture linux/amd64
+```
+
 NOTE: if you don't set `DRY_RUN=true`, this will actually start the mirroring process off for real, and there are over 700 plugins to be mirrored! If you mean to do this (e.g. to test against a small batch of real data) you may want to tweak lines 58 & 60 of the `mirror-plugins` script to reduce that number, e.g.:
 
 ```
