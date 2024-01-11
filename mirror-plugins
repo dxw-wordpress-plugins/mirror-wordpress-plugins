@@ -51,8 +51,23 @@ class Plugin
   def update_github_mirror
     puts "Cloning the gitlab source..."
     `git clone --mirror #{construct_gitlab_https_url}`
+    puts "Generating major version tag..."
+    full_tag = `git -C #{project.path}.git describe --tags --abbrev=0`
+    if $?.exitstatus == 0
+      split_tag = full_tag.split(".")
+      major_tag = split_tag[0]
+      major_tag.prepend("v") unless major_tag.start_with?("v")
+      puts "Tagging latest commit with major version tag of #{major_tag}"
+      `git -C #{@project.path}.git tag -f #{major_tag}`
+    else
+      puts "No tag information found"
+    end
     puts "Updating the github repo..."
-    `git -C #{@project.path}.git push --mirror #{construct_github_https_url}`
+    if dry_run?
+      puts "-- Dry run mode, no repo mirroring taking place --"
+    else
+      `git -C #{@project.path}.git push --mirror #{construct_github_https_url}`
+    end
     # clean up
     `rm -rf #{@project.path}.git`
   end
@@ -60,6 +75,10 @@ end
 
 def dry_run?
   ENV["DRY_RUN"] == "true"
+end
+
+def force_update?
+  ENV["FORCE_UPDATE"] == "true"
 end
 
 Gitlab.configure do |config|
@@ -86,7 +105,7 @@ projects.auto_paginate do |project|
     end
     if plugin.repos_in_sync?
       puts "...and is in sync"
-      next project
+      next project unless force_update?
     end
     puts "... mirroring to it now"
   else
@@ -102,9 +121,5 @@ projects.auto_paginate do |project|
       plugin.create_github_repo
     end
   end
-  if dry_run?
-    puts "-- Dry run mode, no repo mirroring taking place --"
-  else
-    plugin.update_github_mirror
-  end
+  plugin.update_github_mirror
 end
