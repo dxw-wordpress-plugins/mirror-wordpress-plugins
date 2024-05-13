@@ -1,0 +1,255 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require "dotenv"
+require "English"
+require "json"
+require "rubygems"
+require "zip"
+
+Dotenv.load
+
+# Generic error class, can be caught but should not be raised.
+class PluginUpdateError < StandardError
+end
+
+# Could not retrieve information about a given plugin.
+class WordPressPluginApiError < PluginUpdateError
+end
+
+# Could not download a .zip file for a given plugin.
+class WordPressPluginDownloadError < PluginUpdateError
+end
+
+# Could not perform Git action on repo. Only useful for interacting with remotes.
+class GitError < PluginUpdateError
+end
+
+# A Plugin is a GitHub repository that mirrors a plugin from wordpress.org.
+class Plugin
+  attr_reader :slug, :github_url, :default_branch, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
+    :latest_github_version, :latest_wordpress_version
+
+  @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/"
+
+  def initialize(name, github_url, default_branch)
+    @slug = name
+    @github_url = github_url
+    @default_branch = default_branch
+    @full_path_to_clone = File.join(Dir.pwd, @slug)
+    @wordpress_api_url = "#{@@wordpress_api_url}#{@slug}.json"
+    @latest_github_version = fetch_latest_github_version
+    @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info
+    @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
+    @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
+  end
+
+  def repos_in_sync?
+    puts "==> #{@slug} is #{@latest_wordpress_version} on WordPress and #{@latest_github_version} on GitHub"
+    @latest_wordpress_version.strip == @latest_github_version.strip
+  end
+
+  def update_github_mirror
+    puts "==> Cloning the #{@slug} GitHub repo..."
+    `git clone #{construct_github_project_https_url} #{@full_path_to_clone}`
+    raise GitError, "Could not clone #{@github_url}" unless $CHILD_STATUS.success?
+
+    puts "==> Fetching and extracting latest release from wordpress.org"
+    raise WordPressPluginApiError, "No download link available for #{@slug}" if @wordpress_download_link.nil?
+
+    download_wordpress_zip(@zip_file)
+    # We expect to overwrite files in the cloned repository here, as per the
+    # instructions for updating pro plugins manually. However, rubyzip doesn't
+    # like to overwrite existing files, so we unzip first then move.
+    FileUtils.mkdir_p(@tmp_plugin_dir)
+    extract_zip(@zip_file, @tmp_plugin_dir)
+    Dir.glob(File.join(@tmp_plugin_dir, "**", "*"), File::FNM_DOTMATCH).each do |file|
+      next if [".", ".."].include?(File.basename(file))
+
+      destination_path = File.join(@full_path_to_clone, File.basename(file))
+      FileUtils.mv(file, destination_path, force: true)
+    end
+    puts "==> Committing and tagging the repo with both full and major version tags..."
+    commit_and_tag
+    puts "==> Updating the GitHub repo..."
+    if dry_run?
+      puts "... -- Dry run mode, no repo pushing taking place --"
+    else
+      `git -C #{@full_path_to_clone} push #{construct_github_https_url} #{@default_branch} --follow-tags`
+      raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
+    end
+    cleanup
+  end
+
+  def cleanup
+    puts "==> Cleaning up downloaded files..."
+    `rm -rf #{@zip_file}`
+    `rm -rf #{@full_path_to_clone}`
+    `rm -rf #{@tmp_files_for_plugin}`
+  end
+
+  private
+
+  def construct_github_project_https_url
+    credentials = "#{ENV.fetch("GH_ACCOUNT_USERNAME")}:#{ENV.fetch("GH_ACCOUNT_TOKEN")}@"
+    url = "#{@github_url}.git"
+    url.insert(8, credentials)
+  end
+
+  def commit_and_tag
+    `git -C #{@full_path_to_clone} add -A -f .`
+    `git -C #{@full_path_to_clone} add -u`
+    `git -C #{@full_path_to_clone} commit -nm #{@latest_wordpress_version}`
+    split_tag = @latest_wordpress_version.split(".")
+    major_tag = split_tag[0]
+    major_tag.prepend("v") unless major_tag.start_with?("v")
+    `git -C #{@full_path_to_clone} tag #{@latest_wordpress_version}`
+    `git -C #{@full_path_to_clone} tag -f #{major_tag}`
+  end
+
+  def fetch_latest_github_version
+    puts("==> Querying GitHub for latest version ...")
+    begin
+      latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | sort -V | tail -n 1 | cut -d '/' -f 3`
+    rescue
+      # Assume the repo is empty and/or does not have any tags.
+      latest_github_version = ""
+    end
+    latest_github_version
+  end
+
+  def fetch_latest_wordpress_info
+    puts("==> Querying api.wordpress.org for latest version ...")
+    api_info = `curl -s #{@wordpress_api_url}`
+    raise WordPressPluginApiError, "No WordPress API info available for #{@slug}" if api_info.nil?
+
+    begin
+      plugin_info = JSON.parse(api_info)
+    rescue JSON::ParserError => e
+      raise WordPressPluginApiError, e.message
+    end
+    # Whippet Racetrack error message here was "No plugin info available for <plugin>".
+    raise WordPressPluginApiError, plugin_info["error"].to_s if plugin_info.key?("error")
+
+    latest_wordpress_version = "v#{plugin_info["version"].tr(" ", "-")}"
+    [latest_wordpress_version, plugin_info["download_link"]]
+  end
+
+  def download_wordpress_zip(zip_file)
+    `curl -s #{@wordpress_download_link} --output #{zip_file}`
+  rescue => e
+    raise WordPressPluginDownloadError, e.message
+  end
+
+  # Extract all files in zip_file to destination, assuming that destination
+  # is a directory that already exists.
+  # See: https://github.com/rubyzip/rubyzip
+  def extract_zip(zip_file, destination)
+    Zip::File.open(zip_file) do |zipfile|
+      zipfile.each do |entry|
+        destination_path = File.join(destination, entry.name)
+
+        zipfile.extract(entry, destination_path)
+      end
+    end
+  end
+end
+
+# Update all repositories in a GitHub organisation, assuming each one has been
+# mirrored from wordpress.org. Optionally print a summary of the updates
+# that have been performed or have errored.
+class PluginLibraryUpdater
+  @@max_repos_in_library = 99_999 # Effectively unlimited.
+
+  def initialize
+    @failed_updates = {}
+    @updated_plugins = []
+    @start_time = nil
+    @end_time = nil
+  end
+
+  def update
+    @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    projects = JSON.parse(plugin_library_repos)
+    puts "==> Found #{projects.size} plugins in the library"
+    projects.each do |project|
+      hrule
+      puts "==> Checking status of #{project["name"]}..."
+      begin
+        plugin = Plugin.new(project["name"], project["url"], project["defaultBranchRef"])
+        next project if plugin.nil?
+      rescue WordPressPluginApiError => e
+        @failed_updates[project["name"]] =
+          e.message.empty? ? "wordpress.org does not have a plugin called #{projects["name"]}" : e.message
+        next project
+      end
+      if plugin.repos_in_sync?
+        puts "...which is already up to date with WordPress.org"
+        next project unless force_update?
+      end
+      puts "...mirroring to it now"
+      begin
+        plugin.update_github_mirror
+        @updated_plugins.push(plugin.slug)
+      rescue PluginUpdateError => e
+        @failed_updates[plugin.slug] = e.message
+        plugin.cleanup
+      end
+    end
+    @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+
+  def print_summary
+    print_updated_plugin_summary
+    print_failed_plugin_summary
+    hrule
+    elapsed_time = @end_time - @start_time
+    puts "==> Mirroring plugins took: #{(elapsed_time / 60).round}m#{(elapsed_time % 60).round}s."
+  end
+
+  private
+
+  def print_updated_plugin_summary
+    return if @updated_plugins.empty?
+
+    hrule
+    puts "==> Updated the following #{@updated_plugins.size} plugins:"
+    puts @updated_plugins.join("\n")
+  end
+
+  def print_failed_plugin_summary
+    return if @failed_updates.empty?
+
+    hrule
+    puts "==> Failed to update the following #{@failed_updates.size} plugins:"
+    @failed_updates.each do |name, error_message|
+      puts
+      puts "*** #{name} failed to update with message:"
+      puts error_message
+    end
+  end
+
+  def plugin_library_repos
+    puts "==> Fetching all GitHub plugin repositiories in the library..."
+    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,defaultBranchRef --no-archived`
+  end
+
+  def hrule
+    puts
+    puts "-----------------------------------------------------------------------"
+  end
+end
+
+def dry_run?
+  ENV["DRY_RUN"] == "true"
+end
+
+def force_update?
+  ENV["FORCE_UPDATE"] == "true"
+end
+
+puts "==> -- Dry run mode --" if dry_run?
+
+updater = PluginLibraryUpdater.new
+updater.update
+updater.print_summary
