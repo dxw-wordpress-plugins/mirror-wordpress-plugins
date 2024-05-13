@@ -1,0 +1,56 @@
+name: Mirror WordPress plugins to GitHub
+
+on:
+  schedule:
+    - cron: '0 0,6,12,18 * * *'  # Runs at 0:00, 6:00, 12:00, and 18:00 UTC
+
+jobs:
+  mirror-wordpress-plugins:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Ruby setup
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: install GitHub CLI for local testing
+        if: ${{ env.ACT }}
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh
+
+      - name: Authenticate with GitHub CLI
+        run: |
+          echo "${{ secrets.GH_ACCOUNT_TOKEN }}" | gh auth login --with-token
+
+      - name: Mirror WordPress plugins
+        env:
+          GH_ACCOUNT_USERNAME: ${{ secrets.GH_ACCOUNT_USERNAME }}
+          GH_ACCOUNT_TOKEN: ${{ secrets.GH_ACCOUNT_TOKEN }}
+          GH_ORG_NAME: ${{ secrets.GH_ORG_NAME }}
+          DRY_RUN: true
+          FORCE_UPDATE: false
+        run: |
+          ./mirror-wordpress-plugins
+
+      - name: Keep workflow alive
+        uses: gautamkrishnar/keepalive-workflow@1.1.0
+        with:
+          commit_message: Automated commit by Keepalive Workflow to keep the repository active [skip ci]
+          committer_username: dxw-govpress-tools
+          committer_email: team+govpress-tools@govpress.com
+
+      - name: Alert Slack if failure
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}  # Slack channel id to post message
+          slack-message: "The scheduled task to mirror WordPress plugins to GitHub [EXPERIMENTAL BRANCH] has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/main.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
