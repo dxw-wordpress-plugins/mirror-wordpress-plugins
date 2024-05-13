@@ -71,12 +71,16 @@ class Plugin
     end
     puts "==> Committing and tagging the repo with both full and major version tags..."
     commit_and_tag
+    # DEBUG CODE, remove before merging.
+    `git -C #{@full_path_to_clone} status`
     puts "==> Updating the GitHub repo..."
     if dry_run?
       puts "... -- Dry run mode, no repo pushing taking place --"
     else
-      `git -C #{@full_path_to_clone} push #{construct_github_https_url} #{@default_branch} --follow-tags`
-      raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
+      # DEBUG CODE, tidy before merging.
+      puts "...ERROR: SHOULD NOT HAVE RUN THIS LINE!!!"
+      # `git -C #{@full_path_to_clone} push #{construct_github_https_url} #{@default_branch} --follow-tags`
+      # raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
     end
     cleanup
   end
