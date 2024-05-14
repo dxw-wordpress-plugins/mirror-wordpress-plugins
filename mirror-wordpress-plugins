@@ -234,7 +234,7 @@ class PluginLibraryUpdater
   end
 
   def plugin_library_repos
-    puts "==> Fetching all GitHub plugin repositiories in the library..."
+    puts "==> Fetching all GitHub plugin repositories in the library..."
     `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,defaultBranchRef --no-archived`
   end
 
