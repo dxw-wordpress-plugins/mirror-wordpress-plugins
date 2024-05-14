@@ -35,6 +35,7 @@ class Plugin
   def initialize(name, github_url, default_branch)
     @slug = name
     @github_url = github_url
+    @github_https_url = "#{@github_url}.git"
     @default_branch = default_branch
     @full_path_to_clone = File.join(Dir.pwd, @slug)
     @wordpress_api_url = "#{@@wordpress_api_url}#{@slug.downcase}.json"
@@ -51,7 +52,7 @@ class Plugin
 
   def update_github_mirror
     puts "==> Cloning the #{@slug} GitHub repo..."
-    `git clone #{construct_github_project_https_url} #{@full_path_to_clone}`
+    `git clone #{@github_https_url} #{@full_path_to_clone}`
     raise GitError, "Could not clone #{@github_url}" unless $CHILD_STATUS.success?
 
     puts "==> Fetching and extracting latest release from wordpress.org"
@@ -79,7 +80,7 @@ class Plugin
     else
       # DEBUG CODE, tidy before merging.
       puts "...ERROR: SHOULD NOT HAVE RUN THIS LINE!!!"
-      # `git -C #{@full_path_to_clone} push #{construct_github_https_url} #{@default_branch} --follow-tags`
+      # `git -C #{@full_path_to_clone} push #{@github_https_url} #{@default_branch} --follow-tags`
       # raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
     end
     cleanup
@@ -93,12 +94,6 @@ class Plugin
   end
 
   private
-
-  def construct_github_project_https_url
-    credentials = "#{ENV.fetch("GH_ACCOUNT_USERNAME")}:#{ENV.fetch("GH_ACCOUNT_TOKEN")}@"
-    url = "#{@github_url}.git"
-    url.insert(8, credentials)
-  end
 
   def commit_and_tag
     `git -C #{@full_path_to_clone} add -A -f .`
