@@ -37,7 +37,7 @@ class Plugin
     @github_url = github_url
     @default_branch = default_branch
     @full_path_to_clone = File.join(Dir.pwd, @slug)
-    @wordpress_api_url = "#{@@wordpress_api_url}#{@slug}.json"
+    @wordpress_api_url = "#{@@wordpress_api_url}#{@slug.downcase}.json"
     @latest_github_version = fetch_latest_github_version
     @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info
     @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
