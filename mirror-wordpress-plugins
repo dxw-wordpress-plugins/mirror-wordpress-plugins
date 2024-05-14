@@ -51,8 +51,12 @@ class Plugin
       # Repo is empty, or at least has no tags.
       return true
     end
-    wordpress_semver = Gem::Version.new(@latest_wordpress_version[1..])
-    github_semver = Gem::Version.new(@latest_github_version[1..])
+    # We have sometimes ended up with tags that start `vv` instead of `v`. Probably
+    # due to `v...` tags on WordPress that then had `v` prepended to them. Where
+    # this has happened once we have deleted the tag, where it has happened on
+    # every release we have not.
+    wordpress_semver = @latest_wordpress_version.start_with?("vv") ? Gem::Version.new(@latest_wordpress_version[2..]) : Gem::Version.new(@latest_wordpress_version[1..])
+    github_semver = @latest_github_version.start_with?("vv") ? Gem::Version.new(@latest_github_version[2..]) : Gem::Version.new(@latest_github_version[1..])
     wordpress_semver > github_semver
   end
 
