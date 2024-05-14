@@ -45,9 +45,15 @@ class Plugin
     @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
   end
 
-  def repos_in_sync?
+  def repos_need_updating?
     puts "==> #{@slug} is #{@latest_wordpress_version} on WordPress and #{@latest_github_version} on GitHub"
-    @latest_wordpress_version.strip == @latest_github_version.strip
+    if @latest_github_version === ""
+      # Repo is empty, or at least has no tags.
+      return true
+    end
+    wordpress_semver = Gem::Version.new(@latest_wordpress_version[1..])
+    github_semver = Gem::Version.new(@latest_github_version[1..])
+    wordpress_semver > github_semver
   end
 
   def update_github_mirror
@@ -183,7 +189,7 @@ class PluginLibraryUpdater
           e.message.empty? ? "wordpress.org does not have a plugin called #{projects["name"]}" : e.message
         next project
       end
-      if plugin.repos_in_sync?
+      if !plugin.repos_need_updating?
         puts "...which is already up to date with WordPress.org"
         next project unless force_update?
       end
