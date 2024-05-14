@@ -114,7 +114,7 @@ class Plugin
       # Assume the repo is empty and/or does not have any tags.
       latest_github_version = ""
     end
-    latest_github_version
+    latest_github_version.start_with?("v") ? latest_github_version.strip : "v#{latest_github_version.strip}"
   end
 
   def fetch_latest_wordpress_info
@@ -130,8 +130,9 @@ class Plugin
     # Whippet Racetrack error message here was "No plugin info available for <plugin>".
     raise WordPressPluginApiError, plugin_info["error"].to_s if plugin_info.key?("error")
 
-    latest_wordpress_version = "v#{plugin_info["version"].tr(" ", "-")}"
-    [latest_wordpress_version, plugin_info["download_link"]]
+    latest_version_no_spaces = plugin_info["version"].tr(" ", "-").to_s
+    latest_wordpress_version = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
+    [latest_wordpress_version.strip, plugin_info["download_link"]]
   end
 
   def download_wordpress_zip(zip_file)
