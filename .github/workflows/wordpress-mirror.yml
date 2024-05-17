@@ -40,7 +40,7 @@ jobs:
           ./mirror-wordpress-plugins
 
       - name: Keep workflow alive
-        uses: gautamkrishnar/keepalive-workflow@1.1.0
+        uses: gautamkrishnar/keepalive-workflow@2.0.1
         with:
           commit_message: Automated commit by Keepalive Workflow to keep the repository active [skip ci]
           committer_username: dxw-govpress-tools
