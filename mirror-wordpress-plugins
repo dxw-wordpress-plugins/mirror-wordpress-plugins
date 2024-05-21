@@ -125,12 +125,12 @@ class Plugin
   def fetch_latest_github_version
     puts("==> Querying GitHub for latest version ...")
     begin
-      latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | sort -V | tail -n 1 | cut -d '/' -f 3`
+      latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
     rescue
       # Assume the repo is empty and/or does not have any tags.
       latest_github_version = ""
     end
-    latest_github_version.start_with?("v") ? latest_github_version.strip : "v#{latest_github_version.strip}"
+    "v#{latest_github_version.strip}"
   end
 
   def fetch_latest_wordpress_info
