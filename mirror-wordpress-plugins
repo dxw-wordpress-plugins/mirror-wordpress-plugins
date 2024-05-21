@@ -119,6 +119,7 @@ class Plugin
     major_tag = split_tag[0]
     major_tag.prepend("v") unless major_tag.start_with?("v")
     `git -C #{@full_path_to_clone} tag #{@latest_wordpress_version}`
+    raise GitError, "Could not create tag #{@latest_wordpress_version}" unless $CHILD_STATUS.success?
     `git -C #{@full_path_to_clone} tag -f #{major_tag}`
   end
 
