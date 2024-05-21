@@ -29,6 +29,11 @@ jobs:
         run: |
           echo "${{ secrets.GH_ACCOUNT_TOKEN }}" | gh auth login --with-token
 
+      - name: Add global Git configuration
+        run: |
+          git config --global user.email "team+govpress-tools@govpress.com"
+          git config --global user.name "WordPress plugin mirror robot"
+
       - name: Mirror WordPress plugins
         env:
           GH_ACCOUNT_USERNAME: ${{ secrets.GH_ACCOUNT_USERNAME }}
