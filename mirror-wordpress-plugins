@@ -47,7 +47,7 @@ class Plugin
 
   def repos_need_updating?
     puts "==> #{@slug} is #{@latest_wordpress_version} on WordPress and #{@latest_github_version} on GitHub"
-    if @latest_github_version === ""
+    if @latest_github_version === "" || @latest_github_version === "v"
       # Repo is empty, or at least has no tags.
       return true
     end
@@ -119,18 +119,16 @@ class Plugin
     major_tag = split_tag[0]
     major_tag.prepend("v") unless major_tag.start_with?("v")
     `git -C #{@full_path_to_clone} tag #{@latest_wordpress_version}`
+    raise GitError, "Could not create tag #{@latest_wordpress_version}" unless $CHILD_STATUS.success?
     `git -C #{@full_path_to_clone} tag -f #{major_tag}`
   end
 
   def fetch_latest_github_version
     puts("==> Querying GitHub for latest version ...")
-    begin
-      latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | sort -V | tail -n 1 | cut -d '/' -f 3`
-    rescue
-      # Assume the repo is empty and/or does not have any tags.
-      latest_github_version = ""
-    end
-    latest_github_version.start_with?("v") ? latest_github_version.strip : "v#{latest_github_version.strip}"
+    latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
+    # Assume the repo is empty and/or does not have any tags.
+    return "" unless $CHILD_STATUS.success?
+    "v#{latest_github_version.strip}"
   end
 
   def fetch_latest_wordpress_info
