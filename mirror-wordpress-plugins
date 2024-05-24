@@ -34,8 +34,10 @@ end
 class GitError < PluginUpdateError
 end
 
-# A Plugin is a GitHub repository that mirrors a plugin from wordpress.org.
-class Plugin
+# A PluginUpdater is a representation of a GitHub repository that mirrors a
+# plugin from wordpress.org. PluginUpdaters are responsible for updating
+# their related repositories.
+class PluginUpdater
   attr_reader :slug, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
     :latest_github_version, :latest_wordpress_version
 
@@ -183,8 +185,8 @@ class Plugin
 end
 
 # Get information about organisation plugins from GitHub and transform into an
-# array of Plugin objects.
-class PluginBuilder
+# array of PluginUpdater objects.
+class PluginUpdaterBuilder
   @@max_repos_in_library = 99_999 # Effectively unlimited.
 
   def initialize
@@ -197,7 +199,7 @@ class PluginBuilder
     projects.each do |project|
       json_topics = project["repositoryTopics"]
       topics = json_topics.nil? ? [] : json_topics.map { |hash| hash["name"] }
-      plugin = Plugin.new(project["name"], project["url"], project["defaultBranchRef"], topics)
+      plugin = PluginUpdater.new(project["name"], project["url"], project["defaultBranchRef"], topics)
       next project if plugin.nil?
       @plugins.push(plugin)
     end
@@ -226,7 +228,7 @@ class PluginLibraryUpdater
 
   def update
     @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    plugins = PluginBuilder.new.build
+    plugins = PluginUpdaterBuilder.new.build
     plugins.each do |plugin|
       hrule
       puts "==> Checking status of #{plugin.slug}..."
