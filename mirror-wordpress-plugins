@@ -41,8 +41,8 @@ class PluginUpdater
   attr_reader :slug, :repo, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
     :latest_github_version, :latest_wordpress_version
 
-  @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/"
-  @@skip_mirror_topic = "skip-mirror"
+  @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/".freeze
+  @@skip_mirror_topic = "skip-mirror".freeze
 
   def initialize(name, github_url, default_branch, topics)
     @slug = name
@@ -225,7 +225,7 @@ end
 # These are not documented and not in a consistent format. So, we remove
 # any punctuation and replace spacing with dashes before storing the string.
 class RepositoryTopic
-  @@separator = ":"
+  @@separator = ":".freeze
 
   attr_reader :value
 
