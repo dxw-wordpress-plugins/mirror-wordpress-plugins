@@ -17,6 +17,15 @@ end
 class WordPressPluginApiError < PluginUpdateError
 end
 
+# Could retrieve API information but it included an error.
+class WordPressPluginJSONContainsError < PluginUpdateError
+  attr_reader :reason
+  def initialize(msg = "Error from wordpress.org", reason = "")
+    @reason = reason
+    super(msg)
+  end
+end
+
 # Could not download a .zip file for a given plugin.
 class WordPressPluginDownloadError < PluginUpdateError
 end
@@ -146,7 +155,7 @@ class Plugin
       raise WordPressPluginApiError, e.message
     end
     # Whippet Racetrack error message here was "No plugin info available for <plugin>".
-    raise WordPressPluginApiError, plugin_info["error"].to_s if plugin_info.key?("error")
+    raise WordPressPluginJSONContainsError.new(plugin_info["error"].to_s, plugin_info["reason"].to_s) if plugin_info.key?("error")
 
     latest_version_no_spaces = plugin_info["version"].tr(" ", "-").to_s
     latest_wordpress_version = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
@@ -231,6 +240,10 @@ class PluginLibraryUpdater
       rescue WordPressPluginApiError => e
         @failed_updates[plugin.slug] =
           e.message.empty? ? "wordpress.org does not have a plugin called #{plugin.slug}" : e.message
+        next plugin
+      rescue WordPressPluginJSONContainsError => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "wordpress.org reported an error #{plugin.slug}" : "#{e.message} #{e.reason}"
         next plugin
       end
       if !plugin.repos_need_updating?
