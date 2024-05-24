@@ -41,6 +41,7 @@ jobs:
           GH_ORG_NAME: ${{ secrets.GH_ORG_NAME }}
           DRY_RUN: true
           FORCE_UPDATE: false
+          FORCE_ANNOTATION: false
         run: |
           ./mirror-wordpress-plugins
 

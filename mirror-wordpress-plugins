@@ -243,7 +243,7 @@ class RepositoryTopic
   private
 
   def edit_repo(repo, action)
-    if dry_run?
+    if dry_run? && !force_annotation?
       puts "... -- Dry run mode, no repo edits taking place --"
     else
       `gh repo edit #{repo} --#{action}-topic #{@value}`
@@ -385,6 +385,10 @@ end
 
 def force_update?
   ENV["FORCE_UPDATE"] == "true"
+end
+
+def force_annotation?
+  ENV["FORCE_ANNOTATION"] == "true"
 end
 
 puts "==> -- Dry run mode --" if dry_run?
