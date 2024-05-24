@@ -38,13 +38,15 @@ end
 # plugin from wordpress.org. PluginUpdaters are responsible for updating
 # their related repositories.
 class PluginUpdater
-  attr_reader :slug, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
+  attr_reader :slug, :repo, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
     :latest_github_version, :latest_wordpress_version
 
   @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/"
+  @@skip_mirror_topic = "skip-mirror"
 
   def initialize(name, github_url, default_branch, topics)
     @slug = name
+    @repo = "#{ENV.fetch("GH_ORG_NAME")}/#{@slug}"
     @github_url = github_url
     @github_https_url = "#{@github_url}.git"
     @default_branch = default_branch
@@ -73,6 +75,21 @@ class PluginUpdater
     wordpress_semver = @latest_wordpress_version.start_with?("vv") ? Gem::Version.new(@latest_wordpress_version[2..]) : Gem::Version.new(@latest_wordpress_version[1..])
     github_semver = @latest_github_version.start_with?("vv") ? Gem::Version.new(@latest_github_version[2..]) : Gem::Version.new(@latest_github_version[1..])
     wordpress_semver > github_semver
+  end
+
+  def annotate_github_mirror(value, prefix = "")
+    new_topic = RepositoryTopic.new(value, prefix)
+    if @topics.include? new_topic.value
+      puts "==> @slug already has a #{new_topic.value} topic set"
+    end
+    if !prefix.empty?
+      @topics.each do |topic|
+        if topic.start_with?("#{prefix}:")
+          RepositoryTopic.new(topic.split(":")[1], prefix).remove_from_repo(@repo)
+        end
+      end
+    end
+    new_topic.add_to_repo(@repo)
   end
 
   def update_github_mirror
@@ -156,8 +173,13 @@ class PluginUpdater
     rescue JSON::ParserError => e
       raise WordPressPluginApiError, e.message
     end
-    # Whippet Racetrack error message here was "No plugin info available for <plugin>".
-    raise WordPressPluginJSONContainsError.new(plugin_info["error"].to_s, plugin_info["reason"].to_s) if plugin_info.key?("error")
+    if plugin_info.key?("error")
+      annotate_github_mirror(@@skip_mirror_topic)
+      annotate_github_mirror(plugin_info["error"], "status")
+      annotate_github_mirror(plugin_info["reason"], "reason") if plugin_info.key?("reason") && plugin_info["reason"].is_a?(String)
+      # Whippet Racetrack error message here was "No plugin info available for <plugin>".
+      raise WordPressPluginJSONContainsError.new(plugin_info["error"].to_s, plugin_info["reason"].to_s)
+    end
 
     latest_version_no_spaces = plugin_info["version"].tr(" ", "-").to_s
     latest_wordpress_version = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
@@ -180,6 +202,51 @@ class PluginUpdater
 
         zipfile.extract(entry, destination_path)
       end
+    end
+  end
+end
+
+# A repository topic is a single piece of metadata displayed on the repo page.
+# This class takes strings, which will usually be from the WordPress API into
+# a repository topic which can be added or removed from a repository.
+#
+# Example error and `reason_text` JSON values include that might be used as
+# topics include:
+#
+#   * closed
+#   * Plugin not found.
+#   * Guideline Violation
+#   * Security Issue
+#
+# These are not documented and not in a consistent format. So, we remove
+# any punctuation and replace spacing with dashes before storing the string.
+class RepositoryTopic
+  @@separator = ":"
+
+  attr_reader :value
+
+  def initialize(text, prefix = "")
+    clean_text = text.to_s.gsub(/[^a-z0-9\-\s]/i, "").downcase.gsub(/\s+/, "-")
+    @value = prefix.nil? || prefix.empty? ? clean_text : "#{prefix}#{@@separator}#{clean_text}"
+  end
+
+  def add_to_repo(repo)
+    puts "==> Adding topic #{@value} to repo..."
+    edit_repo(repo, "add")
+  end
+
+  def remove_from_repo(repo)
+    puts "==> Removing topic #{@value} from repo..."
+    edit_repo(repo, "remove")
+  end
+
+  private
+
+  def edit_repo(repo, action)
+    if dry_run?
+      puts "... -- Dry run mode, no repo edits taking place --"
+    else
+      `gh repo edit #{repo} --#{action}-topic #{@value}`
     end
   end
 end
