@@ -300,7 +300,7 @@ class PluginLibraryUpdater
       hrule
       puts "==> Checking status of #{plugin.slug}..."
       begin
-        if plugin.topics.include? "skip-mirror"
+        if plugin.topics.include? "skip-mirror" && !annotate_skipped_repos?
           @skipped_plugins.push(plugin.slug)
           puts "==> Skipping..."
           next
@@ -321,7 +321,7 @@ class PluginLibraryUpdater
       end
       puts "...mirroring to it now"
       begin
-        plugin.update_github_mirror
+        plugin.update_github_mirror unless plugin.topics.include? "skip-mirror"
         @updated_plugins[plugin.slug] = plugin.latest_wordpress_version
       rescue PluginUpdateError => e
         @failed_updates[plugin.slug] = e.message
@@ -381,6 +381,10 @@ end
 
 def dry_run?
   ENV["DRY_RUN"] == "true"
+end
+
+def annotate_skipped_repos?
+  ENV["ANNOTATE_SKIPPED_REPOS"] == "true"
 end
 
 def force_update?
