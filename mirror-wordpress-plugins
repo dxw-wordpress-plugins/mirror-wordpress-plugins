@@ -27,22 +27,26 @@ end
 
 # A Plugin is a GitHub repository that mirrors a plugin from wordpress.org.
 class Plugin
-  attr_reader :slug, :github_url, :default_branch, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
+  attr_reader :slug, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
     :latest_github_version, :latest_wordpress_version
 
   @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/"
 
-  def initialize(name, github_url, default_branch)
+  def initialize(name, github_url, default_branch, topics)
     @slug = name
     @github_url = github_url
     @github_https_url = "#{@github_url}.git"
     @default_branch = default_branch
+    @topics = topics
     @full_path_to_clone = File.join(Dir.pwd, @slug)
     @wordpress_api_url = "#{@@wordpress_api_url}#{@slug.downcase}.json"
+    @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
+  end
+
+  def fetch_api_information
     @latest_github_version = fetch_latest_github_version
     @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info
     @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
-    @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
   end
 
   def repos_need_updating?
@@ -169,37 +173,69 @@ class Plugin
   end
 end
 
+# Get information about organisation plugins from GitHub and transform into an
+# array of Plugin objects.
+class PluginBuilder
+  @@max_repos_in_library = 99_999 # Effectively unlimited.
+
+  def initialize
+    @plugins = []
+  end
+
+  def build
+    projects = JSON.parse(plugin_library_repos)
+    puts "==> Found #{projects.size} plugins in the library"
+    projects.each do |project|
+      json_topics = project["repositoryTopics"]
+      topics = json_topics.nil? ? [] : json_topics.map { |hash| hash["name"] }
+      plugin = Plugin.new(project["name"], project["url"], project["defaultBranchRef"], topics)
+      next project if plugin.nil?
+      @plugins.push(plugin)
+    end
+    @plugins
+  end
+
+  private
+
+  def plugin_library_repos
+    puts "==> Fetching all GitHub plugin repositories in the library..."
+    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,defaultBranchRef,repositoryTopics --no-archived`
+  end
+end
+
 # Update all repositories in a GitHub organisation, assuming each one has been
 # mirrored from wordpress.org. Optionally print a summary of the updates
 # that have been performed or have errored.
 class PluginLibraryUpdater
-  @@max_repos_in_library = 99_999 # Effectively unlimited.
-
   def initialize
     @failed_updates = {}
     @updated_plugins = {}
+    @skipped_plugins = []
     @start_time = nil
     @end_time = nil
   end
 
   def update
     @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    projects = JSON.parse(plugin_library_repos)
-    puts "==> Found #{projects.size} plugins in the library"
-    projects.each do |project|
+    plugins = PluginBuilder.new.build
+    plugins.each do |plugin|
       hrule
-      puts "==> Checking status of #{project["name"]}..."
+      puts "==> Checking status of #{plugin.slug}..."
       begin
-        plugin = Plugin.new(project["name"], project["url"], project["defaultBranchRef"])
-        next project if plugin.nil?
+        if plugin.topics.include? "skip-mirror"
+          @skipped_plugins.push(plugin.slug)
+          puts "==> Skipping..."
+          next
+        end
+        plugin.fetch_api_information
       rescue WordPressPluginApiError => e
-        @failed_updates[project["name"]] =
-          e.message.empty? ? "wordpress.org does not have a plugin called #{projects["name"]}" : e.message
-        next project
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "wordpress.org does not have a plugin called #{plugin.slug}" : e.message
+        next plugin
       end
       if !plugin.repos_need_updating?
         puts "...which is already up to date with WordPress.org"
-        next project unless force_update?
+        next plugin unless force_update?
       end
       puts "...mirroring to it now"
       begin
@@ -214,6 +250,7 @@ class PluginLibraryUpdater
   end
 
   def print_summary
+    print_skipped_plugin_summary
     print_updated_plugin_summary
     print_failed_plugin_summary
     hrule
@@ -222,6 +259,15 @@ class PluginLibraryUpdater
   end
 
   private
+
+  def print_skipped_plugin_summary
+    return if @skipped_plugins.empty?
+
+    hrule
+    puts "==> Skipped the following #{@skipped_plugins.size} plugin(s):"
+    puts
+    puts @skipped_plugins
+  end
 
   def print_updated_plugin_summary
     return if @updated_plugins.empty?
@@ -243,11 +289,6 @@ class PluginLibraryUpdater
       puts "*** #{name} failed to update with message:"
       puts error_message
     end
-  end
-
-  def plugin_library_repos
-    puts "==> Fetching all GitHub plugin repositories in the library..."
-    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,defaultBranchRef --no-archived`
   end
 
   def hrule
