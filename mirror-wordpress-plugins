@@ -56,6 +56,10 @@ class PluginUpdater
     @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
   end
 
+  def self.skip_mirror_topic
+    @@skip_mirror_topic
+  end
+
   def fetch_api_information
     @latest_github_version = fetch_latest_github_version
     @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info
@@ -300,7 +304,7 @@ class PluginLibraryUpdater
       hrule
       puts "==> Checking status of #{plugin.slug}..."
       begin
-        if plugin.topics.include? "skip-mirror" && !annotate_skipped_repos?
+        if plugin.topics.include?(PluginUpdater.skip_mirror_topic) && !annotate_skipped_repos?
           @skipped_plugins.push(plugin.slug)
           puts "==> Skipping..."
           next
@@ -321,7 +325,7 @@ class PluginLibraryUpdater
       end
       puts "...mirroring to it now"
       begin
-        plugin.update_github_mirror unless plugin.topics.include? "skip-mirror"
+        plugin.update_github_mirror unless plugin.topics.include? PluginUpdater.skip_mirror_topic
         @updated_plugins[plugin.slug] = plugin.latest_wordpress_version
       rescue PluginUpdateError => e
         @failed_updates[plugin.slug] = e.message
