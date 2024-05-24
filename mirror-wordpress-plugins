@@ -27,16 +27,17 @@ end
 
 # A Plugin is a GitHub repository that mirrors a plugin from wordpress.org.
 class Plugin
-  attr_reader :slug, :github_url, :default_branch, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
+  attr_reader :slug, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
     :latest_github_version, :latest_wordpress_version
 
   @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/"
 
-  def initialize(name, github_url, default_branch)
+  def initialize(name, github_url, default_branch, topics)
     @slug = name
     @github_url = github_url
     @github_https_url = "#{@github_url}.git"
     @default_branch = default_branch
+    @topics = topics
     @full_path_to_clone = File.join(Dir.pwd, @slug)
     @wordpress_api_url = "#{@@wordpress_api_url}#{@slug.downcase}.json"
     @latest_github_version = fetch_latest_github_version
@@ -178,6 +179,7 @@ class PluginLibraryUpdater
   def initialize
     @failed_updates = {}
     @updated_plugins = {}
+    @skipped_plugins = []
     @start_time = nil
     @end_time = nil
   end
@@ -190,7 +192,14 @@ class PluginLibraryUpdater
       hrule
       puts "==> Checking status of #{project["name"]}..."
       begin
-        plugin = Plugin.new(project["name"], project["url"], project["defaultBranchRef"])
+        json_topics = project["repositoryTopics"]
+        topics = json_topics.nil? ? [] : json_topics.map { |hash| hash["name"] }
+        if topics.include? "skip-mirror"
+          @skipped_plugins.push(project["name"])
+          puts "==> Skipping..."
+          next
+        end
+        plugin = Plugin.new(project["name"], project["url"], project["defaultBranchRef"], topics)
         next project if plugin.nil?
       rescue WordPressPluginApiError => e
         @failed_updates[project["name"]] =
@@ -214,6 +223,7 @@ class PluginLibraryUpdater
   end
 
   def print_summary
+    print_skipped_plugin_summary
     print_updated_plugin_summary
     print_failed_plugin_summary
     hrule
@@ -222,6 +232,15 @@ class PluginLibraryUpdater
   end
 
   private
+
+  def print_skipped_plugin_summary
+    return if @skipped_plugins.empty?
+
+    hrule
+    puts "==> Skipped the following #{@skipped_plugins.size} plugin(s):"
+    puts
+    puts @skipped_plugins
+  end
 
   def print_updated_plugin_summary
     return if @updated_plugins.empty?
@@ -247,7 +266,7 @@ class PluginLibraryUpdater
 
   def plugin_library_repos
     puts "==> Fetching all GitHub plugin repositories in the library..."
-    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,defaultBranchRef --no-archived`
+    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,defaultBranchRef,repositoryTopics --no-archived`
   end
 
   def hrule
