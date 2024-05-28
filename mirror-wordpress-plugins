@@ -82,18 +82,18 @@ class PluginUpdater
   end
 
   def annotate_github_mirror(value, prefix = "")
-    new_topic = RepositoryTopic.new(value, prefix)
+    new_topic = RepositoryTopic.new(value, @repo, prefix)
     if @topics.include? new_topic.value
       puts "==> @slug already has a #{new_topic.value} topic set"
     end
     if !prefix.empty?
       @topics.each do |topic|
         if topic.start_with?("#{prefix}:")
-          RepositoryTopic.new(topic.split(":")[1], prefix).remove_from_repo(@repo)
+          RepositoryTopic.new(topic.split(":")[1], @repo, prefix).remove_from_repo
         end
       end
     end
-    new_topic.add_to_repo(@repo)
+    new_topic.add_to_repo
   end
 
   def update_github_mirror
@@ -227,30 +227,31 @@ end
 class RepositoryTopic
   @@separator = ":".freeze
 
-  attr_reader :value
+  attr_reader :value, :repo
 
-  def initialize(text, prefix = "")
+  def initialize(text, repo, prefix = "")
     clean_text = text.to_s.gsub(/[^a-z0-9\-\s]/i, "").downcase.gsub(/\s+/, "-")
     @value = prefix.nil? || prefix.empty? ? clean_text : "#{prefix}#{@@separator}#{clean_text}"
+    @repo = repo
   end
 
-  def add_to_repo(repo)
+  def add_to_repo
     puts "==> Adding topic #{@value} to repo..."
-    edit_repo(repo, "add")
+    edit_repo("add")
   end
 
-  def remove_from_repo(repo)
+  def remove_from_repo
     puts "==> Removing topic #{@value} from repo..."
-    edit_repo(repo, "remove")
+    edit_repo("remove")
   end
 
   private
 
-  def edit_repo(repo, action)
+  def edit_repo(action)
     if dry_run? && !force_annotation?
       puts "... -- Dry run mode, no repo edits taking place --"
     else
-      `gh repo edit #{repo} --#{action}-topic #{@value}`
+      `gh repo edit #{@repo} --#{action}-topic #{@value}`
     end
   end
 end
