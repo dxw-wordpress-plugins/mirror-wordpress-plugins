@@ -62,7 +62,7 @@ class PluginUpdater
 
   def fetch_api_information
     @latest_github_version = fetch_latest_github_version
-    @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info
+    @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info_and_annotate_repo
     @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
   end
 
@@ -167,7 +167,7 @@ class PluginUpdater
     "v#{latest_github_version.strip}"
   end
 
-  def fetch_latest_wordpress_info
+  def fetch_latest_wordpress_info_and_annotate_repo
     puts("==> Querying api.wordpress.org for latest version ...")
     api_info = `curl -s #{@wordpress_api_url}`
     raise WordPressPluginApiError, "No WordPress API info available for #{@slug}" if api_info.nil?
@@ -177,10 +177,8 @@ class PluginUpdater
     rescue JSON::ParserError => e
       raise WordPressPluginApiError, e.message
     end
+    annotate_repo_with_wordpress_metadata(plugin_info)
     if plugin_info.key?("error")
-      annotate_github_mirror(@@skip_mirror_topic)
-      annotate_github_mirror(plugin_info["error"], "status")
-      annotate_github_mirror(plugin_info["reason"], "reason") if plugin_info.key?("reason") && plugin_info["reason"].is_a?(String)
       # Whippet Racetrack error message here was "No plugin info available for <plugin>".
       raise WordPressPluginJSONContainsError.new(plugin_info["error"].to_s, plugin_info["reason"].to_s)
     end
@@ -188,6 +186,14 @@ class PluginUpdater
     latest_version_no_spaces = plugin_info["version"].tr(" ", "-").to_s
     latest_wordpress_version = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
     [latest_wordpress_version.strip, plugin_info["download_link"]]
+  end
+
+  def annotate_repo_with_wordpress_metadata(plugin_info)
+    if plugin_info.key?("error")
+      annotate_github_mirror(@@skip_mirror_topic)
+      annotate_github_mirror(plugin_info["error"], "status")
+      annotate_github_mirror(plugin_info["reason"], "reason") if plugin_info.key?("reason") && plugin_info["reason"].is_a?(String)
+    end
   end
 
   def download_wordpress_zip(zip_file)
