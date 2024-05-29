@@ -17,6 +17,15 @@ end
 class WordPressPluginApiError < PluginUpdateError
 end
 
+# Could retrieve API information but it included an error.
+class WordPressPluginJSONContainsError < PluginUpdateError
+  attr_reader :reason
+  def initialize(msg = "Error from wordpress.org", reason = "")
+    @reason = reason
+    super(msg)
+  end
+end
+
 # Could not download a .zip file for a given plugin.
 class WordPressPluginDownloadError < PluginUpdateError
 end
@@ -25,15 +34,19 @@ end
 class GitError < PluginUpdateError
 end
 
-# A Plugin is a GitHub repository that mirrors a plugin from wordpress.org.
-class Plugin
-  attr_reader :slug, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
+# A PluginUpdater is a representation of a GitHub repository that mirrors a
+# plugin from wordpress.org. PluginUpdaters are responsible for updating
+# their related repositories.
+class PluginUpdater
+  attr_reader :slug, :repo, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
     :latest_github_version, :latest_wordpress_version
 
-  @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/"
+  @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/".freeze
+  @@skip_mirror_topic = "skip-mirror".freeze
 
   def initialize(name, github_url, default_branch, topics)
     @slug = name
+    @repo = "#{ENV.fetch("GH_ORG_NAME")}/#{@slug}"
     @github_url = github_url
     @github_https_url = "#{@github_url}.git"
     @default_branch = default_branch
@@ -43,9 +56,13 @@ class Plugin
     @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
   end
 
+  def self.skip_mirror_topic
+    @@skip_mirror_topic
+  end
+
   def fetch_api_information
     @latest_github_version = fetch_latest_github_version
-    @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info
+    @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info_and_annotate_repo
     @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
   end
 
@@ -62,6 +79,21 @@ class Plugin
     wordpress_semver = @latest_wordpress_version.start_with?("vv") ? Gem::Version.new(@latest_wordpress_version[2..]) : Gem::Version.new(@latest_wordpress_version[1..])
     github_semver = @latest_github_version.start_with?("vv") ? Gem::Version.new(@latest_github_version[2..]) : Gem::Version.new(@latest_github_version[1..])
     wordpress_semver > github_semver
+  end
+
+  def annotate_github_mirror(value, prefix = "")
+    new_topic = RepositoryTopic.new(value, @repo, prefix)
+    if @topics.include? new_topic.value
+      puts "==> @slug already has a #{new_topic.value} topic set"
+    end
+    if !prefix.empty?
+      @topics.each do |topic|
+        if topic.start_with?("#{prefix}:")
+          RepositoryTopic.new(topic.split(":")[1], @repo, prefix).remove_from_repo
+        end
+      end
+    end
+    new_topic.add_to_repo
   end
 
   def update_github_mirror
@@ -135,7 +167,7 @@ class Plugin
     "v#{latest_github_version.strip}"
   end
 
-  def fetch_latest_wordpress_info
+  def fetch_latest_wordpress_info_and_annotate_repo
     puts("==> Querying api.wordpress.org for latest version ...")
     api_info = `curl -s #{@wordpress_api_url}`
     raise WordPressPluginApiError, "No WordPress API info available for #{@slug}" if api_info.nil?
@@ -145,12 +177,23 @@ class Plugin
     rescue JSON::ParserError => e
       raise WordPressPluginApiError, e.message
     end
-    # Whippet Racetrack error message here was "No plugin info available for <plugin>".
-    raise WordPressPluginApiError, plugin_info["error"].to_s if plugin_info.key?("error")
+    annotate_repo_with_wordpress_metadata(plugin_info)
+    if plugin_info.key?("error")
+      # Whippet Racetrack error message here was "No plugin info available for <plugin>".
+      raise WordPressPluginJSONContainsError.new(plugin_info["error"].to_s, plugin_info["reason"].to_s)
+    end
 
     latest_version_no_spaces = plugin_info["version"].tr(" ", "-").to_s
     latest_wordpress_version = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
     [latest_wordpress_version.strip, plugin_info["download_link"]]
+  end
+
+  def annotate_repo_with_wordpress_metadata(plugin_info)
+    if plugin_info.key?("error")
+      annotate_github_mirror(@@skip_mirror_topic)
+      annotate_github_mirror(plugin_info["error"], "status")
+      annotate_github_mirror(plugin_info["reason"], "reason") if plugin_info.key?("reason") && plugin_info["reason"].is_a?(String)
+    end
   end
 
   def download_wordpress_zip(zip_file)
@@ -173,9 +216,55 @@ class Plugin
   end
 end
 
+# A repository topic is a single piece of metadata displayed on the repo page.
+# This class takes strings, which will usually be from the WordPress API into
+# a repository topic which can be added or removed from a repository.
+#
+# Example error and `reason_text` JSON values include that might be used as
+# topics include:
+#
+#   * closed
+#   * Plugin not found.
+#   * Guideline Violation
+#   * Security Issue
+#
+# These are not documented and not in a consistent format. So, we remove
+# any punctuation and replace spacing with dashes before storing the string.
+class RepositoryTopic
+  @@separator = ":".freeze
+
+  attr_reader :value, :repo
+
+  def initialize(text, repo, prefix = "")
+    clean_text = text.to_s.gsub(/[^a-z0-9\-\s]/i, "").downcase.gsub(/\s+/, "-")
+    @value = prefix.nil? || prefix.empty? ? clean_text : "#{prefix}#{@@separator}#{clean_text}"
+    @repo = repo
+  end
+
+  def add_to_repo
+    puts "==> Adding topic #{@value} to repo..."
+    edit_repo("add")
+  end
+
+  def remove_from_repo
+    puts "==> Removing topic #{@value} from repo..."
+    edit_repo("remove")
+  end
+
+  private
+
+  def edit_repo(action)
+    if dry_run? && !force_annotation?
+      puts "... -- Dry run mode, no repo edits taking place --"
+    else
+      `gh repo edit #{@repo} --#{action}-topic #{@value}`
+    end
+  end
+end
+
 # Get information about organisation plugins from GitHub and transform into an
-# array of Plugin objects.
-class PluginBuilder
+# array of PluginUpdater objects.
+class PluginUpdaterBuilder
   @@max_repos_in_library = 99_999 # Effectively unlimited.
 
   def initialize
@@ -188,7 +277,7 @@ class PluginBuilder
     projects.each do |project|
       json_topics = project["repositoryTopics"]
       topics = json_topics.nil? ? [] : json_topics.map { |hash| hash["name"] }
-      plugin = Plugin.new(project["name"], project["url"], project["defaultBranchRef"], topics)
+      plugin = PluginUpdater.new(project["name"], project["url"], project["defaultBranchRef"], topics)
       next project if plugin.nil?
       @plugins.push(plugin)
     end
@@ -217,12 +306,12 @@ class PluginLibraryUpdater
 
   def update
     @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    plugins = PluginBuilder.new.build
+    plugins = PluginUpdaterBuilder.new.build
     plugins.each do |plugin|
       hrule
       puts "==> Checking status of #{plugin.slug}..."
       begin
-        if plugin.topics.include? "skip-mirror"
+        if plugin.topics.include?(PluginUpdater.skip_mirror_topic) && !annotate_skipped_repos?
           @skipped_plugins.push(plugin.slug)
           puts "==> Skipping..."
           next
@@ -232,6 +321,10 @@ class PluginLibraryUpdater
         @failed_updates[plugin.slug] =
           e.message.empty? ? "wordpress.org does not have a plugin called #{plugin.slug}" : e.message
         next plugin
+      rescue WordPressPluginJSONContainsError => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "wordpress.org reported an error #{plugin.slug}" : "#{e.message} #{e.reason}"
+        next plugin
       end
       if !plugin.repos_need_updating?
         puts "...which is already up to date with WordPress.org"
@@ -239,7 +332,7 @@ class PluginLibraryUpdater
       end
       puts "...mirroring to it now"
       begin
-        plugin.update_github_mirror
+        plugin.update_github_mirror unless plugin.topics.include? PluginUpdater.skip_mirror_topic
         @updated_plugins[plugin.slug] = plugin.latest_wordpress_version
       rescue PluginUpdateError => e
         @failed_updates[plugin.slug] = e.message
@@ -301,8 +394,16 @@ def dry_run?
   ENV["DRY_RUN"] == "true"
 end
 
+def annotate_skipped_repos?
+  ENV["ANNOTATE_SKIPPED_REPOS"] == "true"
+end
+
 def force_update?
   ENV["FORCE_UPDATE"] == "true"
+end
+
+def force_annotation?
+  ENV["FORCE_ANNOTATION"] == "true"
 end
 
 puts "==> -- Dry run mode --" if dry_run?
