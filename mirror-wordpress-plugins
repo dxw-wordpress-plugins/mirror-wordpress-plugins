@@ -231,7 +231,7 @@ end
 # These are not documented and not in a consistent format. So, we remove
 # any punctuation and replace spacing with dashes before storing the string.
 class RepositoryTopic
-  @@separator = ":".freeze
+  @@separator = "-".freeze
 
   attr_reader :value, :repo
 
