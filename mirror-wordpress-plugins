@@ -274,7 +274,7 @@ class PluginUpdaterBuilder
     projects.each do |project|
       json_topics = project["repositoryTopics"]
       topics = json_topics.nil? ? [] : json_topics.map { |hash| hash["name"] }
-      plugin = PluginUpdater.new(project["name"], project["url"], project["defaultBranchRef"], topics)
+      plugin = PluginUpdater.new(project["name"], project["url"], project["defaultBranchRef"]["name"], topics)
       next project if plugin.nil?
       @plugins.push(plugin)
     end
