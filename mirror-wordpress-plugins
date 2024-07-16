@@ -123,7 +123,7 @@ class PluginUpdater
     if dry_run?
       puts "... -- Dry run mode, no repo pushing taking place --"
     else
-      `git -C #{@full_path_to_clone} push #{@github_https_url} #{@default_branch} --follow-tags`
+      `git -C #{@full_path_to_clone} push #{@construct_github_https_url} #{@default_branch} --follow-tags`
       raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
     end
     cleanup
