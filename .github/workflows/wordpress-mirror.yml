@@ -1,8 +1,9 @@
 name: Mirror WordPress plugins to GitHub
 
 on:
+  workflow_dispatch: 
   schedule:
-    - cron: '0 0,6,12,18 * * *'  # Runs at 0:00, 6:00, 12:00, and 18:00 UTC
+    - cron: '0 8,12,16 * * *'  # Runs at 08:00, 12:00, and 16:00 UTC
 
 jobs:
   mirror-wordpress-plugins:
@@ -39,10 +40,10 @@ jobs:
           GH_ACCOUNT_USERNAME: ${{ secrets.GH_ACCOUNT_USERNAME }}
           GH_ACCOUNT_TOKEN: ${{ secrets.GH_ACCOUNT_TOKEN }}
           GH_ORG_NAME: ${{ secrets.GH_ORG_NAME }}
-          DRY_RUN: true
-          FORCE_UPDATE: false
-          FORCE_ANNOTATION: false
-          ANNOTATE_SKIPPED_REPOS: false
+          DRY_RUN: ${{ secrets.DRY_RUN }}
+          FORCE_UPDATE: ${{ secrets.FORCE_UPDATE }}
+          FORCE_ANNOTATION: ${{ secrets.FORCE_ANNOTATION }}
+          ANNOTATE_SKIPPED_REPOS: ${{ secrets.ANNOTATE_SKIPPED_REPOS }}
         run: |
           ./mirror-wordpress-plugins
 
