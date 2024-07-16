@@ -38,18 +38,17 @@ end
 # plugin from wordpress.org. PluginUpdaters are responsible for updating
 # their related repositories.
 class PluginUpdater
-  attr_reader :slug, :repo, :github_url, :default_branch, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
+  attr_reader :slug, :repo, :github_url, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
     :latest_github_version, :latest_wordpress_version
 
   @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/".freeze
   @@skip_mirror_topic = "skip-mirror".freeze
 
-  def initialize(name, github_url, default_branch, topics)
+  def initialize(name, github_url, topics)
     @slug = name
     @repo = "#{ENV.fetch("GH_ORG_NAME")}/#{@slug}"
     @github_url = github_url
     @github_https_url = "#{@github_url}.git"
-    @default_branch = default_branch
     @topics = topics
     @full_path_to_clone = File.join(Dir.pwd, @slug)
     @wordpress_api_url = "#{@@wordpress_api_url}#{@slug.downcase}.json"
@@ -123,7 +122,7 @@ class PluginUpdater
     if dry_run?
       puts "... -- Dry run mode, no repo pushing taking place --"
     else
-      `git -C #{@full_path_to_clone} push #{@construct_github_https_url} #{@default_branch} --follow-tags`
+      `git -C #{@full_path_to_clone} push --follow-tags`
       raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
     end
     cleanup
@@ -274,7 +273,7 @@ class PluginUpdaterBuilder
     projects.each do |project|
       json_topics = project["repositoryTopics"]
       topics = json_topics.nil? ? [] : json_topics.map { |hash| hash["name"] }
-      plugin = PluginUpdater.new(project["name"], project["url"], project["defaultBranchRef"]["name"], topics)
+      plugin = PluginUpdater.new(project["name"], project["url"], topics)
       next project if plugin.nil?
       @plugins.push(plugin)
     end
@@ -285,7 +284,7 @@ class PluginUpdaterBuilder
 
   def plugin_library_repos
     puts "==> Fetching all GitHub plugin repositories in the library..."
-    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,defaultBranchRef,repositoryTopics --no-archived`
+    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,repositoryTopics --no-archived`
   end
 end
 
