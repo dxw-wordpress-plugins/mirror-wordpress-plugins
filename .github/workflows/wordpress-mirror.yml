@@ -1,6 +1,7 @@
 name: Mirror WordPress plugins to GitHub
 
 on:
+  workflow_dispatch: 
   schedule:
     - cron: '0 8,12,16 * * *'  # Runs at 08:00, 12:00, and 16:00 UTC
 
