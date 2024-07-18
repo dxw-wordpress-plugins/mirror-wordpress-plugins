@@ -151,7 +151,7 @@ class PluginUpdater
     split_tag = @latest_wordpress_version.split(".")
     major_tag = split_tag[0]
     major_tag.prepend("v") unless major_tag.start_with?("v")
-    `git -C #{@full_path_to_clone} tag #{@latest_wordpress_version}`
+    force_update? ? `git -C #{@full_path_to_clone} tag -f #{@latest_wordpress_version}` : `git -C #{@full_path_to_clone} tag #{@latest_wordpress_version}`
     raise GitError, "Could not create tag #{@latest_wordpress_version}" unless $CHILD_STATUS.success?
     `git -C #{@full_path_to_clone} tag -f #{major_tag}`
   end
