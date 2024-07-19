@@ -1,0 +1,213 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require "dotenv"
+require "English"
+require "json"
+require "rubygems"
+require "time"
+require "zip"
+
+Dotenv.load
+
+# Generic error class, can be caught but should not be raised.
+class PluginUpdateError < StandardError
+end
+
+# Could not find a latest version tag for the plugin
+class MissingVersionError < PluginUpdateError
+end
+
+# Could not perform Git action on repo. Only useful for interacting with remotes.
+class GitError < PluginUpdateError
+end
+
+# A Plugin is a representation of a GitHub repository that mirrors a
+# plugin from wordpress.org. Plugins are responsible for updating
+# their related repositories.
+class Plugin
+  attr_reader :slug, :repo, :github_url, :full_path_to_clone, :latest_github_version, :latest_major_version
+
+  def initialize(name, github_url)
+    @slug = name
+    @repo = "#{ENV.fetch("GH_ORG_NAME")}/#{@slug}"
+    @github_url = github_url
+    @github_https_url = "#{@github_url}.git"
+    @full_path_to_clone = File.join(Dir.pwd, @slug)
+    @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
+  end
+
+  def populate_version_information
+    @latest_github_version = fetch_latest_github_version
+    raise MissingVersionError, "No version tags found for #{slug}" if @latest_github_version == ""
+    split_tag = @latest_github_version.split(".")
+    major_tag = split_tag[0]
+    major_tag.prepend("v") unless major_tag.start_with?("v")
+    @latest_major_version = major_tag
+  end
+
+  def update_major_version_tag
+    puts "==> Cloning the #{@slug} GitHub repo..."
+    `git clone #{construct_github_https_url} #{@full_path_to_clone}`
+    raise GitError, "Could not clone #{@github_url}" unless $CHILD_STATUS.success?
+
+    puts "==> Tagging the repo with the latest major version tag..."
+    tag
+    `git -C #{@full_path_to_clone} status`
+    puts "==> Updating the GitHub repo..."
+    if dry_run?
+      puts "... -- Dry run mode, no repo pushing taking place --"
+    else
+      puts "!!! ERROR This should not be running"
+      # `git -C #{@full_path_to_clone} push --tags --force`
+      # raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
+    end
+    cleanup
+  end
+
+  def cleanup
+    puts "==> Cleaning up downloaded files..."
+    `rm -rf #{@zip_file}`
+    `rm -rf #{@full_path_to_clone}`
+    `rm -rf #{@tmp_files_for_plugin}`
+  end
+
+  private
+
+  def construct_github_https_url
+    credentials = ENV.fetch("GH_ACCOUNT_USERNAME") + ":" + ENV.fetch("GH_ACCOUNT_TOKEN") + "@"
+    url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @slug + ".git"
+    url.insert(8, credentials)
+  end
+
+  def tag
+    `git -C #{@full_path_to_clone} tag -f #{@latest_major_version} #{@latest_github_version}`
+  end
+
+  def fetch_latest_github_version
+    puts("==> Querying GitHub for latest version ...")
+    latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
+    # Assume the repo is empty and/or does not have any tags.
+    return "" unless $CHILD_STATUS.success?
+    "v#{latest_github_version.strip}"
+  end
+end
+
+# Get information about organisation plugins from GitHub and transform into an
+# array of Plugin objects.
+class PluginCollection
+  @@max_repos_in_library = 99_999 # Effectively unlimited.
+  @@last_updated_range = 43_200 # 12 hours in seconds - we're going to run this more frequently than the actual mirroring, so this should be plenty
+
+  def initialize
+    @plugins = []
+  end
+
+  def build
+    projects = JSON.parse(plugin_library_repos)
+    puts "==> Found #{projects.size} plugins in the library"
+    projects.each do |project|
+      updated_date_time = Time.parse(project["updatedAt"])
+      next project if (Time.now - updated_date_time) > @@last_updated_range
+      plugin = Plugin.new(project["name"], project["url"])
+      next project if plugin.nil?
+      # puts project["name"]
+      @plugins.push(plugin)
+    end
+    @plugins
+  end
+
+  private
+
+  def plugin_library_repos
+    puts "==> Fetching all GitHub plugin repositories in the library..."
+    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,updatedAt --no-archived`
+  end
+end
+
+# Update all repositories in a GitHub organisation, assuming each one has been
+# mirrored from wordpress.org. Optionally print a summary of the updates
+# that have been performed or have errored.
+class PluginLibraryTagger
+  def initialize
+    @failed_updates = {}
+    @updated_plugins = {}
+    @start_time = nil
+    @end_time = nil
+  end
+
+  def update
+    @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    plugins = PluginCollection.new.build
+    plugins.each do |plugin|
+      hrule
+      puts "==> Checking status of #{plugin.slug}..."
+      begin
+        plugin.populate_version_information
+      rescue MissingVersionError => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "error retrieving version tags for #{plugin.slug}" : e.message.to_s
+        next plugin
+      end
+      puts "...applying major tag to it now"
+      begin
+        plugin.update_major_version_tag
+        @updated_plugins[plugin.slug] = {
+          major_tag: plugin.latest_major_version,
+          corresponding_version: plugin.latest_github_version
+        }
+      rescue PluginUpdateError => e
+        @failed_updates[plugin.slug] = e.message
+        plugin.cleanup
+      end
+    end
+    @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+
+  def print_summary
+    print_updated_plugin_summary
+    print_failed_plugin_summary
+    hrule
+    elapsed_time = @end_time - @start_time
+    puts "==> Mirroring plugins took: #{(elapsed_time / 60).round}m#{(elapsed_time % 60).round}s."
+  end
+
+  private
+
+  def print_updated_plugin_summary
+    return if @updated_plugins.empty?
+
+    hrule
+    puts "==> Updated the following #{@updated_plugins.size} plugin(s):"
+    @updated_plugins.each do |name, version_hash|
+      puts "#{name} #{version_hash[:corresponding_version]} tagged as #{version_hash[:major_tag]}"
+    end
+  end
+
+  def print_failed_plugin_summary
+    return if @failed_updates.empty?
+
+    hrule
+    puts "==> Failed to update the following #{@failed_updates.size} plugin(s):"
+    @failed_updates.each do |name, error_message|
+      puts
+      puts "*** #{name} failed to update with message:"
+      puts error_message
+    end
+  end
+
+  def hrule
+    puts
+    puts "-----------------------------------------------------------------------"
+  end
+end
+
+def dry_run?
+  ENV["DRY_RUN"] == "true"
+end
+
+puts "==> -- Dry run mode --" if dry_run?
+
+tagger = PluginLibraryTagger.new
+tagger.update
+tagger.print_summary
