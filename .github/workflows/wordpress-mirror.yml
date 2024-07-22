@@ -59,6 +59,6 @@ jobs:
         uses: slackapi/slack-github-action@v1.23.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}  # Slack channel id to post message
-          slack-message: "The scheduled task to mirror WordPress plugins to GitHub [EXPERIMENTAL BRANCH] has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/main.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
+          slack-message: "The scheduled task to mirror WordPress plugins to GitHub has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/main.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
