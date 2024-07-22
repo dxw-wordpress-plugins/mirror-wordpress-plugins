@@ -25,7 +25,7 @@ Install act:
 brew install act
 ```
 
-Then copy the `.env.example` file to `.env`, and populate it with the appropriate values (you can use the values from the service accounts in 1password if needed). In particular, set `DRY_RUN=true`, so that no real changes are made.
+Then copy the `.env.example` file to `.env`, and populate it with the appropriate values (you can use the values from the service accounts in 1password if needed). In particular, set `DRY_RUN_MIRROR=true`, so that no real changes are made.
 
 Then run the action with:
 
@@ -39,7 +39,7 @@ If you're using a machine with an ARM-based processor, you may need to do:
 act -j mirror-gitlab-plugins --secret-file .env --container-architecture linux/amd64
 ```
 
-NOTE: if you don't set `DRY_RUN=true`, this will actually start the mirroring process off for real, and there are over 700 plugins to be mirrored! If you mean to do this (e.g. to test against a small batch of real data) you may want to tweak lines 58 & 60 of the `mirror-plugins` script to reduce that number, e.g.:
+NOTE: if you don't set `DRY_RUN_MIRROR=true`, this will actually start the mirroring process off for real, and there are over 700 plugins to be mirrored! If you mean to do this (e.g. to test against a small batch of real data) you may want to tweak lines 58 & 60 of the `mirror-plugins` script to reduce that number, e.g.:
 
 ```
 projects = Gitlab.group_projects(ENV['GITLAB_WORDPRESS_PLUGINS_GROUP_ID'], per_page: 10)

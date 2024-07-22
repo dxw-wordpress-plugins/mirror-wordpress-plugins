@@ -40,8 +40,8 @@ jobs:
           GH_ACCOUNT_USERNAME: ${{ secrets.GH_ACCOUNT_USERNAME }}
           GH_ACCOUNT_TOKEN: ${{ secrets.GH_ACCOUNT_TOKEN }}
           GH_ORG_NAME: ${{ secrets.GH_ORG_NAME }}
-          DRY_RUN: ${{ secrets.DRY_RUN }}
-          FORCE_UPDATE: ${{ secrets.FORCE_UPDATE }}
+          DRY_RUN_MIRROR: ${{ secrets.DRY_RUN_MIRROR }}
+          FORCE_UPDATE_MIRROR: ${{ secrets.FORCE_UPDATE_MIRROR }}
           FORCE_ANNOTATION: ${{ secrets.FORCE_ANNOTATION }}
           ANNOTATE_SKIPPED_REPOS: ${{ secrets.ANNOTATE_SKIPPED_REPOS }}
         run: |
