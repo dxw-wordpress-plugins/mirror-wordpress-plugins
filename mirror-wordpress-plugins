@@ -83,7 +83,7 @@ class PluginUpdater
   def annotate_github_mirror(value, prefix = "")
     new_topic = RepositoryTopic.new(value, @repo, prefix)
     if @topics.include? new_topic.value
-      puts "==> @slug already has a #{new_topic.value} topic set"
+      puts "==> #{@slug} already has a #{new_topic.value} topic set"
     end
     if !prefix.empty?
       @topics.each do |topic|
@@ -186,11 +186,11 @@ class PluginUpdater
   end
 
   def annotate_repo_with_wordpress_metadata(plugin_info)
-    if plugin_info.key?("error")
-      annotate_github_mirror(@@skip_mirror_topic)
-      annotate_github_mirror(plugin_info["error"], "status")
-      annotate_github_mirror(plugin_info["reason"], "reason") if plugin_info.key?("reason") && plugin_info["reason"].is_a?(String)
-    end
+    return unless plugin_info.key?("error")
+
+    annotate_github_mirror(@@skip_mirror_topic)
+    annotate_github_mirror(plugin_info["error"], "status")
+    annotate_github_mirror(plugin_info["reason"], "reason") if plugin_info.key?("reason") && plugin_info["reason"].is_a?(String) && !plugin_info["reason"].empty?
   end
 
   def download_wordpress_zip(zip_file)
