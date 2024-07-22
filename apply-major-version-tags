@@ -203,7 +203,7 @@ class PluginLibraryTagger
 end
 
 def dry_run?
-  ENV["DRY_RUN"] == "true"
+  ENV["TAGGER_DRY_RUN"] == "true"
 end
 
 puts "==> -- Dry run mode --" if dry_run?
