@@ -388,7 +388,7 @@ class PluginLibraryUpdater
 end
 
 def dry_run?
-  ENV["DRY_RUN"] == "true"
+  ENV["DRY_RUN_MIRROR"] == "true"
 end
 
 def annotate_skipped_repos?
@@ -396,7 +396,7 @@ def annotate_skipped_repos?
 end
 
 def force_update?
-  ENV["FORCE_UPDATE"] == "true"
+  ENV["FORCE_UPDATE_MIRROR"] == "true"
 end
 
 def force_annotation?
