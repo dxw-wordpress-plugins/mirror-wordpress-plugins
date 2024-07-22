@@ -88,7 +88,7 @@ class Plugin
     puts("==> Querying GitHub for latest version ...")
     latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
     # Assume the repo is empty and/or does not have any tags.
-    return "" unless $CHILD_STATUS.success?
+    return "" unless $CHILD_STATUS.success? && latest_github_version.strip != "."
     "v#{latest_github_version.strip}"
   end
 end
