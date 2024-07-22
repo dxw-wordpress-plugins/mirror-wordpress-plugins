@@ -83,7 +83,7 @@ class PluginUpdater
   def annotate_github_mirror(value, prefix = "")
     new_topic = RepositoryTopic.new(value, @repo, prefix)
     if @topics.include? new_topic.value
-      puts "==> @slug already has a #{new_topic.value} topic set"
+      puts "==> #{@slug} already has a #{new_topic.value} topic set"
     end
     if !prefix.empty?
       @topics.each do |topic|
