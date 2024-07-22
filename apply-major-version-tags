@@ -107,8 +107,10 @@ class PluginCollection
     projects = JSON.parse(plugin_library_repos)
     puts "==> Found #{projects.size} plugins in the library"
     projects.each do |project|
-      updated_date_time = Time.parse(project["updatedAt"])
-      next project if (Time.now - updated_date_time) > @@last_updated_range
+      unless force_update?
+        updated_date_time = Time.parse(project["updatedAt"])
+        next project if (Time.now - updated_date_time) > @@last_updated_range
+      end
       plugin = Plugin.new(project["name"], project["url"])
       next project if plugin.nil?
       # puts project["name"]
@@ -206,7 +208,13 @@ def dry_run?
   ENV["TAGGER_DRY_RUN"] == "true"
 end
 
+def force_update?
+  ENV["TAGGER_FORCE_UPDATE"] == "true"
+end
+
 puts "==> -- Dry run mode --" if dry_run?
+
+puts "==> -- Force update mode --" if force_update?
 
 tagger = PluginLibraryTagger.new
 tagger.update
