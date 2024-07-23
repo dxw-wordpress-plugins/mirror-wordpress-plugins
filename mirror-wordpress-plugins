@@ -115,7 +115,7 @@ class PluginUpdater
       destination_path = File.join(@full_path_to_clone, File.basename(file))
       FileUtils.mv(file, destination_path, force: true)
     end
-    puts "==> Committing and tagging the repo with both full and major version tags..."
+    puts "==> Committing and tagging the repo with full tag..."
     commit_and_tag
     `git -C #{@full_path_to_clone} status`
     puts "==> Updating the GitHub repo..."
@@ -148,12 +148,8 @@ class PluginUpdater
     `git -C #{@full_path_to_clone} add -A -f .`
     `git -C #{@full_path_to_clone} add -u`
     `git -C #{@full_path_to_clone} commit -nm #{@latest_wordpress_version}`
-    split_tag = @latest_wordpress_version.split(".")
-    major_tag = split_tag[0]
-    major_tag.prepend("v") unless major_tag.start_with?("v")
     force_update? ? `git -C #{@full_path_to_clone} tag -f #{@latest_wordpress_version}` : `git -C #{@full_path_to_clone} tag #{@latest_wordpress_version}`
     raise GitError, "Could not create tag #{@latest_wordpress_version}" unless $CHILD_STATUS.success?
-    `git -C #{@full_path_to_clone} tag -f #{major_tag}`
   end
 
   def fetch_latest_github_version
