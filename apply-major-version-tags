@@ -58,9 +58,8 @@ class Plugin
     if dry_run?
       puts "... -- Dry run mode, no repo pushing taking place --"
     else
-      puts "!!! ERROR This should not be running"
-      # `git -C #{@full_path_to_clone} push --tags --force`
-      # raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
+      `git -C #{@full_path_to_clone} push --tags --force`
+      raise GitError, "Could not push to #{@github_url}" unless $CHILD_STATUS.success?
     end
     cleanup
   end
