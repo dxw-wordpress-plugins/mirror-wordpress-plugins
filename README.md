@@ -39,12 +39,16 @@ If you're using a machine with an ARM-based processor, you may need to do:
 act -j mirror-gitlab-plugins --secret-file .env --container-architecture linux/amd64
 ```
 
-NOTE: if you don't set `DRY_RUN_MIRROR=true`, this will actually start the mirroring process off for real, and there are over 700 plugins to be mirrored! If you mean to do this (e.g. to test against a small batch of real data) you may want to tweak lines 58 & 60 of the `mirror-plugins` script to reduce that number, e.g.:
+NOTE: if you don't set `DRY_RUN_MIRROR=true`, this will actually start the mirroring process off for real, and there are over 700 plugins to be mirrored! If you mean to do this (e.g. to test against a small batch of real data) you may want to tweak this line of the `mirror-wordpress-plugins` script to reduce that number.
 
+That is change:
+
+```ruby
+@@max_repos_in_library = 99_999 # Effectively unlimited.
 ```
-projects = Gitlab.group_projects(ENV['GITLAB_WORDPRESS_PLUGINS_GROUP_ID'], per_page: 10)
 
-projects.each do |project|
+to something like:
+
+```ruby
+@@max_repos_in_library = 10 # Effectively unlimited.
 ```
-
-If the loop starts with `projects.auto_paginate do |project|`, it will always run through the entire set.
