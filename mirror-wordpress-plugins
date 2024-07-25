@@ -107,7 +107,7 @@ class PluginUpdater
     puts "==> Deleting existing files in the repo"
     files = Dir.glob(File.join(@full_path_to_clone, "**", "*"), File::FNM_DOTMATCH)
     files.each do |file|
-      next if File.directory?(file) || file.include?(".git")
+      next if File.directory?(file) || file.include?(".git/")
 
       FileUtils.rm(file)
     end
