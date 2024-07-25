@@ -52,7 +52,6 @@ class PluginUpdater
     @topics = topics
     @full_path_to_clone = File.join(Dir.pwd, @slug)
     @wordpress_api_url = "#{@@wordpress_api_url}#{@slug.downcase}.json"
-    @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
   end
 
   def self.skip_mirror_topic
@@ -104,17 +103,16 @@ class PluginUpdater
     raise WordPressPluginApiError, "No download link available for #{@slug}" if @wordpress_download_link.nil?
 
     download_wordpress_zip(@zip_file)
-    # We expect to overwrite files in the cloned repository here, as per the
-    # instructions for updating pro plugins manually. However, rubyzip doesn't
-    # like to overwrite existing files, so we unzip first then move.
-    FileUtils.mkdir_p(@tmp_plugin_dir)
-    extract_zip(@zip_file, @tmp_plugin_dir)
-    Dir.glob(File.join(@tmp_plugin_dir, "**", "*"), File::FNM_DOTMATCH).each do |file|
-      next if [".", ".."].include?(File.basename(file))
+    # Delete existing files in the repo
+    puts "==> Deleting existing files in the repo"
+    files = Dir.glob(File.join(@full_path_to_clone, "**", "*"), File::FNM_DOTMATCH)
+    files.each do |file|
+      next if File.directory?(file) || file.include?(".git")
 
-      destination_path = File.join(@full_path_to_clone, File.basename(file))
-      FileUtils.mv(file, destination_path, force: true)
+      FileUtils.rm(file)
     end
+    # Then unzip into the Git directory
+    extract_zip(@zip_file, Dir.pwd)
     puts "==> Committing and tagging the repo with full tag..."
     commit_and_tag
     `git -C #{@full_path_to_clone} status`
