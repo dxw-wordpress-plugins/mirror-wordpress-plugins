@@ -116,6 +116,7 @@ class PluginUpdater
       FileUtils.rm(file)
     end
     # Then unzip into the Git directory
+    puts "==> Extracting the latest release from the archive file..."
     extract_zip(@zip_file, Dir.pwd)
     puts "==> Committing and tagging the repo with full tag..."
     commit_and_tag
