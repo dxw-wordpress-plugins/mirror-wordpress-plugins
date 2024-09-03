@@ -30,6 +30,10 @@ end
 class WordPressPluginDownloadError < PluginUpdateError
 end
 
+# Could not unzip the .zip file for a given plugin.
+class WordPressPluginUnzipError < PluginUpdateError
+end
+
 # Could not perform Git action on repo. Only useful for interacting with remotes.
 class GitError < PluginUpdateError
 end
@@ -112,6 +116,7 @@ class PluginUpdater
       FileUtils.rm(file)
     end
     # Then unzip into the Git directory
+    puts "==> Extracting the latest release from the archive file..."
     extract_zip(@zip_file, Dir.pwd)
     puts "==> Committing and tagging the repo with full tag..."
     commit_and_tag
@@ -205,6 +210,8 @@ class PluginUpdater
         zipfile.extract(entry, destination_path)
       end
     end
+  rescue => e
+    raise WordPressPluginUnzipError, e.message
   end
 end
 
@@ -316,6 +323,14 @@ class PluginLibraryUpdater
       rescue WordPressPluginJSONContainsError => e
         @failed_updates[plugin.slug] =
           e.message.empty? ? "wordpress.org reported an error #{plugin.slug}" : "#{e.message} #{e.reason}"
+        next plugin
+      rescue WordPressPluginDownloadError => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "could not download archive for #{plugin.slug}" : e.message
+        next plugin
+      rescue WordPressPluginUnzipError => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "could not unzip archive for #{plugin.slug}" : e.message
         next plugin
       end
       if !plugin.repos_need_updating?
