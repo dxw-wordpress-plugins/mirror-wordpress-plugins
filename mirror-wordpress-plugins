@@ -134,9 +134,13 @@ class PluginUpdater
 
   def cleanup
     puts "==> Cleaning up downloaded files..."
-    `rm -rf #{@zip_file}`
-    `rm -rf #{@full_path_to_clone}`
-    `rm -rf #{@tmp_files_for_plugin}`
+    if dry_run?
+      puts "... -- Dry run mode, leaving downloaded files so they can be manually verified --"
+    else
+      `rm -rf #{@zip_file}`
+      `rm -rf #{@full_path_to_clone}`
+      `rm -rf #{@tmp_files_for_plugin}`
+    end
   end
 
   private
