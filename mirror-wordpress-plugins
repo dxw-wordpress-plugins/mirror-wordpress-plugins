@@ -202,7 +202,12 @@ class PluginUpdater
   end
 
   def download_wordpress_zip(zip_file)
-    `curl -s #{@wordpress_download_link} --output #{zip_file}`
+    if do_not_download?
+      puts "==> Skipping download of .zip file since NO_DOWNLOAD_MIRROR variable is set"
+    else
+      puts "==> Downloading #{@wordpress_download_link}..."
+      `curl -s #{@wordpress_download_link} --output #{zip_file}`
+    end
   rescue => e
     raise WordPressPluginDownloadError, e.message
   end
@@ -423,6 +428,10 @@ end
 
 def do_not_clone?
   ENV["NO_CLONE_MIRROR"] == "true"
+end
+
+def do_not_download?
+  ENV["NO_DOWNLOAD_MIRROR"] == "true"
 end
 
 puts "==> -- Dry run mode --" if dry_run?
