@@ -99,9 +99,13 @@ class PluginUpdater
   end
 
   def update_github_mirror
-    puts "==> Cloning the #{@slug} GitHub repo..."
-    `git clone #{construct_github_https_url} #{@full_path_to_clone}`
-    raise GitError, "Could not clone #{@github_url}" unless $CHILD_STATUS.success?
+    if do_not_clone?
+      puts "==> Skipping 'git clone...' since the NO_CLONE_MIRROR variable is set"
+    else
+      puts "==> Cloning the #{@slug} GitHub repo..."
+      `git clone #{construct_github_https_url} #{@full_path_to_clone}`
+      raise GitError, "Could not clone #{@github_url}" unless $CHILD_STATUS.success?
+    end
 
     puts "==> Fetching and extracting latest release from wordpress.org"
     raise WordPressPluginApiError, "No download link available for #{@slug}" if @wordpress_download_link.nil?
@@ -415,6 +419,10 @@ end
 
 def force_annotation?
   ENV["FORCE_ANNOTATION"] == "true"
+end
+
+def do_not_clone?
+  ENV["NO_CLONE_MIRROR"] == "true"
 end
 
 puts "==> -- Dry run mode --" if dry_run?
