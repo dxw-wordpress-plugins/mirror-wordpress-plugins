@@ -99,9 +99,13 @@ class PluginUpdater
   end
 
   def update_github_mirror
-    puts "==> Cloning the #{@slug} GitHub repo..."
-    `git clone #{construct_github_https_url} #{@full_path_to_clone}`
-    raise GitError, "Could not clone #{@github_url}" unless $CHILD_STATUS.success?
+    if do_not_clone?
+      puts "==> Skipping 'git clone...' since the NO_CLONE_MIRROR variable is set"
+    else
+      puts "==> Cloning the #{@slug} GitHub repo..."
+      `git clone #{construct_github_https_url} #{@full_path_to_clone}`
+      raise GitError, "Could not clone #{@github_url}" unless $CHILD_STATUS.success?
+    end
 
     puts "==> Fetching and extracting latest release from wordpress.org"
     raise WordPressPluginApiError, "No download link available for #{@slug}" if @wordpress_download_link.nil?
@@ -134,9 +138,13 @@ class PluginUpdater
 
   def cleanup
     puts "==> Cleaning up downloaded files..."
-    `rm -rf #{@zip_file}`
-    `rm -rf #{@full_path_to_clone}`
-    `rm -rf #{@tmp_files_for_plugin}`
+    if dry_run?
+      puts "... -- Dry run mode, leaving downloaded files so they can be manually verified --"
+    else
+      `rm -rf #{@zip_file}`
+      `rm -rf #{@full_path_to_clone}`
+      `rm -rf #{@tmp_files_for_plugin}`
+    end
   end
 
   private
@@ -194,7 +202,16 @@ class PluginUpdater
   end
 
   def download_wordpress_zip(zip_file)
-    `curl -s #{@wordpress_download_link} --output #{zip_file}`
+    if do_not_download?
+      puts "==> Skipping download of .zip file since NO_DOWNLOAD_MIRROR variable is set"
+    else
+      puts "==> Downloading #{@wordpress_download_link}..."
+      response_code = `curl -o /dev/null -s -I -w "%{http_code}" #{@wordpress_download_link}`.chomp
+      if response_code != "200"
+        raise WordPressPluginDownloadError, "#{@wordpress_download_link} does not return a 200 OK response"
+      end
+      `curl -s #{@wordpress_download_link} --output #{zip_file}`
+    end
   rescue => e
     raise WordPressPluginDownloadError, e.message
   end
@@ -411,6 +428,14 @@ end
 
 def force_annotation?
   ENV["FORCE_ANNOTATION"] == "true"
+end
+
+def do_not_clone?
+  ENV["NO_CLONE_MIRROR"] == "true"
+end
+
+def do_not_download?
+  ENV["NO_DOWNLOAD_MIRROR"] == "true"
 end
 
 puts "==> -- Dry run mode --" if dry_run?
