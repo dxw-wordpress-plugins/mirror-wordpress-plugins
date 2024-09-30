@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require_relative "./lib/error_mixin"
+
 require "bundler/setup"
 require "dotenv"
 require "English"
@@ -8,35 +10,6 @@ require "rubygems"
 require "zip"
 
 Dotenv.load
-
-# Generic error class, can be caught but should not be raised.
-class PluginUpdateError < StandardError
-end
-
-# Could not retrieve information about a given plugin.
-class WordPressPluginApiError < PluginUpdateError
-end
-
-# Could retrieve API information but it included an error.
-class WordPressPluginJSONContainsError < PluginUpdateError
-  attr_reader :reason
-  def initialize(msg = "Error from wordpress.org", reason = "")
-    @reason = reason
-    super(msg)
-  end
-end
-
-# Could not download a .zip file for a given plugin.
-class WordPressPluginDownloadError < PluginUpdateError
-end
-
-# Could not unzip the .zip file for a given plugin.
-class WordPressPluginUnzipError < PluginUpdateError
-end
-
-# Could not perform Git action on repo. Only useful for interacting with remotes.
-class GitError < PluginUpdateError
-end
 
 # A PluginUpdater is a representation of a GitHub repository that mirrors a
 # plugin from wordpress.org. PluginUpdaters are responsible for updating

@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require_relative "./lib/error_mixin"
+
 require "bundler/setup"
 require "dotenv"
 require "English"
@@ -9,18 +11,6 @@ require "time"
 require "zip"
 
 Dotenv.load
-
-# Generic error class, can be caught but should not be raised.
-class PluginUpdateError < StandardError
-end
-
-# Could not find a latest version tag for the plugin
-class MissingVersionError < PluginUpdateError
-end
-
-# Could not perform Git action on repo. Only useful for interacting with remotes.
-class GitError < PluginUpdateError
-end
 
 # A Plugin is a representation of a GitHub repository that mirrors a
 # plugin from wordpress.org. Plugins are responsible for updating
