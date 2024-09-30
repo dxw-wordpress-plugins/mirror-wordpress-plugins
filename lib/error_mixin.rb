@@ -30,3 +30,7 @@ end
 # Could not find a latest version tag for the plugin
 class MissingVersionError < PluginUpdateError
 end
+
+# A plugin file did not have the same checksum as the equivalent file on wordpress.org.
+class WordPressPluginChecksumMismatchError < PluginUpdateError
+end
