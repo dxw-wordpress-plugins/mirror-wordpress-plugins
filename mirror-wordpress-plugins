@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require_relative "./lib/error_mixin"
+require_relative "./lib/plugin_verifier"
 
 require "bundler/setup"
 require "dotenv"
@@ -98,6 +99,8 @@ class PluginUpdater
     puts "==> Committing and tagging the repo with full tag..."
     commit_and_tag
     clean_local_files
+    verifier = PluginVerifier.new(@slug, @latest_wordpress_version, @full_path_to_clone)
+    verifier.verify_checksums # Raises WordPressPluginChecksumMismatchError
     `git -C #{@full_path_to_clone} status`
     puts "==> Updating the GitHub repo..."
     if dry_run?
@@ -326,6 +329,10 @@ class PluginLibraryUpdater
       rescue WordPressPluginUnzipError => e
         @failed_updates[plugin.slug] =
           e.message.empty? ? "could not unzip archive for #{plugin.slug}" : e.message
+        next plugin
+      rescue WordPressPluginChecksumMismatchError => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "could not verify file checksums for #{plugin.slug}" : e.message
         next plugin
       end
       if !plugin.repos_need_updating?
