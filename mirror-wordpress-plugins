@@ -97,6 +97,7 @@ class PluginUpdater
     extract_zip(@zip_file, Dir.pwd)
     puts "==> Committing and tagging the repo with full tag..."
     commit_and_tag
+    clean_local_files
     `git -C #{@full_path_to_clone} status`
     puts "==> Updating the GitHub repo..."
     if dry_run?
@@ -126,6 +127,10 @@ class PluginUpdater
     credentials = ENV.fetch("GH_ACCOUNT_USERNAME") + ":" + ENV.fetch("GH_ACCOUNT_TOKEN") + "@"
     url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @slug + ".git"
     url.insert(8, credentials)
+  end
+
+  def clean_local_files
+    `git -C #{@full_path_to_clone} clean -fd`
   end
 
   def commit_and_tag
