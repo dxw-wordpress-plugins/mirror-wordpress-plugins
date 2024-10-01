@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require_relative "./lib/error_mixin"
+require_relative "./lib/plugin_collection"
 require_relative "./lib/plugin_verifier"
 require_relative "./lib/repository_topic"
 
@@ -222,13 +223,7 @@ end
 
 # Get information about organisation plugins from GitHub and transform into an
 # array of PluginUpdater objects.
-class PluginUpdaterBuilder
-  @@max_repos_in_library = 99_999 # Effectively unlimited.
-
-  def initialize
-    @plugins = []
-  end
-
+class PluginCollection < AbstractPluginCollection
   def build
     projects = JSON.parse(plugin_library_repos)
     puts "==> Found #{projects.size} plugins in the library"
@@ -240,13 +235,6 @@ class PluginUpdaterBuilder
       @plugins.push(plugin)
     end
     @plugins
-  end
-
-  private
-
-  def plugin_library_repos
-    puts "==> Fetching all GitHub plugin repositories in the library..."
-    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,repositoryTopics --no-archived`
   end
 end
 
@@ -264,7 +252,7 @@ class PluginLibraryUpdater
 
   def update
     @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    plugins = PluginUpdaterBuilder.new.build
+    plugins = PluginCollection.new.build
     plugins.each do |plugin|
       hrule
       puts "==> Checking status of #{plugin.slug}..."

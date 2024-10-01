@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require_relative "./lib/error_mixin"
+require_relative "./lib/plugin_collection"
 
 require "bundler/setup"
 require "dotenv"
@@ -84,13 +85,8 @@ end
 
 # Get information about organisation plugins from GitHub and transform into an
 # array of Plugin objects.
-class PluginCollection
-  @@max_repos_in_library = 99_999 # Effectively unlimited.
+class PluginCollection < AbstractPluginCollection
   @@last_updated_range = 43_200 # 12 hours in seconds - we're going to run this more frequently than the actual mirroring, so this should be plenty
-
-  def initialize
-    @plugins = []
-  end
 
   def build
     projects = JSON.parse(plugin_library_repos)
@@ -105,13 +101,6 @@ class PluginCollection
       @plugins.push(plugin)
     end
     @plugins
-  end
-
-  private
-
-  def plugin_library_repos
-    puts "==> Fetching all GitHub plugin repositories in the library..."
-    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,updatedAt --no-archived`
   end
 end
 
