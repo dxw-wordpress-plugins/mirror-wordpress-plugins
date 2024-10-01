@@ -102,7 +102,6 @@ class PluginCollection
       end
       plugin = Plugin.new(project["name"], project["url"])
       next project if plugin.nil?
-      # puts project["name"]
       @plugins.push(plugin)
     end
     @plugins
