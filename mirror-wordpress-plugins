@@ -2,6 +2,7 @@
 
 require_relative "./lib/error_mixin"
 require_relative "./lib/plugin_collection"
+require_relative "./lib/plugin_library_updater"
 require_relative "./lib/plugin_verifier"
 require_relative "./lib/repository_topic"
 
@@ -241,13 +242,11 @@ end
 # Update all repositories in a GitHub organisation, assuming each one has been
 # mirrored from wordpress.org. Optionally print a summary of the updates
 # that have been performed or have errored.
-class PluginLibraryUpdater
+class PluginLibraryUpdater < AbstractPluginLibraryUpdater
   def initialize
-    @failed_updates = {}
-    @updated_plugins = {}
-    @skipped_plugins = []
     @start_time = nil
     @end_time = nil
+    super
   end
 
   def update
@@ -302,27 +301,11 @@ class PluginLibraryUpdater
       end
     end
     @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  end
-
-  def print_summary
-    print_skipped_plugin_summary
-    print_updated_plugin_summary
-    print_failed_plugin_summary
-    hrule
     elapsed_time = @end_time - @start_time
     puts "==> Mirroring plugins took: #{(elapsed_time / 60).round}m#{(elapsed_time % 60).round}s."
   end
 
   private
-
-  def print_skipped_plugin_summary
-    return if @skipped_plugins.empty?
-
-    hrule
-    puts "==> Skipped the following #{@skipped_plugins.size} plugin(s):"
-    puts
-    puts @skipped_plugins
-  end
 
   def print_updated_plugin_summary
     return if @updated_plugins.empty?
@@ -332,23 +315,6 @@ class PluginLibraryUpdater
     @updated_plugins.each do |name, version|
       puts "#{name} updated to version #{version}"
     end
-  end
-
-  def print_failed_plugin_summary
-    return if @failed_updates.empty?
-
-    hrule
-    puts "==> Failed to update the following #{@failed_updates.size} plugin(s):"
-    @failed_updates.each do |name, error_message|
-      puts
-      puts "*** #{name} failed to update with message:"
-      puts error_message
-    end
-  end
-
-  def hrule
-    puts
-    puts "-----------------------------------------------------------------------"
   end
 end
 

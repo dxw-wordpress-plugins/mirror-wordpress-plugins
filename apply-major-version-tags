@@ -2,6 +2,7 @@
 
 require_relative "./lib/error_mixin"
 require_relative "./lib/plugin_collection"
+require_relative "./lib/plugin_library_updater"
 
 require "bundler/setup"
 require "dotenv"
@@ -107,12 +108,11 @@ end
 # Update all repositories in a GitHub organisation, assuming each one has been
 # mirrored from wordpress.org. Optionally print a summary of the updates
 # that have been performed or have errored.
-class PluginLibraryTagger
+class PluginLibraryTagger < AbstractPluginLibraryUpdater
   def initialize
-    @failed_updates = {}
-    @updated_plugins = {}
     @start_time = nil
     @end_time = nil
+    super
   end
 
   def update
@@ -141,43 +141,19 @@ class PluginLibraryTagger
       end
     end
     @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  end
-
-  def print_summary
-    print_updated_plugin_summary
-    print_failed_plugin_summary
-    hrule
     elapsed_time = @end_time - @start_time
-    puts "==> Mirroring plugins took: #{(elapsed_time / 60).round}m#{(elapsed_time % 60).round}s."
+    puts "==> Applying major version takes took: #{(elapsed_time / 60).round}m#{(elapsed_time % 60).round}s."
   end
 
   private
 
   def print_updated_plugin_summary
     return if @updated_plugins.empty?
-
     hrule
     puts "==> Updated the following #{@updated_plugins.size} plugin(s):"
     @updated_plugins.each do |name, version_hash|
       puts "#{name} #{version_hash[:corresponding_version]} tagged as #{version_hash[:major_tag]}"
     end
-  end
-
-  def print_failed_plugin_summary
-    return if @failed_updates.empty?
-
-    hrule
-    puts "==> Failed to update the following #{@failed_updates.size} plugin(s):"
-    @failed_updates.each do |name, error_message|
-      puts
-      puts "*** #{name} failed to update with message:"
-      puts error_message
-    end
-  end
-
-  def hrule
-    puts
-    puts "-----------------------------------------------------------------------"
   end
 end
 
