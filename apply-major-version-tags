@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require_relative "./lib/error_mixin"
+require_relative "./lib/plugin"
 require_relative "./lib/plugin_collection"
 require_relative "./lib/plugin_library_updater"
 
@@ -17,22 +18,13 @@ Dotenv.load
 # A Plugin is a representation of a GitHub repository that mirrors a
 # plugin from wordpress.org. Plugins are responsible for updating
 # their related repositories.
-class Plugin
-  attr_reader :slug, :repo, :github_url, :full_path_to_clone, :latest_github_version, :latest_major_version
-
-  def initialize(name, github_url)
-    @slug = name
-    @repo = "#{ENV.fetch("GH_ORG_NAME")}/#{@slug}"
-    @github_url = github_url
-    @github_https_url = "#{@github_url}.git"
-    @full_path_to_clone = File.join(Dir.pwd, @slug)
-    @tmp_plugin_dir = File.join(Dir.pwd, "tmp", @slug)
-  end
+class Plugin < AbstractPlugin
+  attr_reader :latest_major_version
 
   def populate_version_information
-    @latest_github_version = fetch_latest_github_version
-    raise MissingVersionError, "No version tags found for #{slug}" if @latest_github_version == ""
-    split_tag = @latest_github_version.split(".")
+    @latest_plugin_version_on_github = fetch_latest_plugin_version_on_github
+    raise MissingVersionError, "No version tags found for #{slug}" if @latest_plugin_version_on_github == ""
+    split_tag = @latest_plugin_version_on_github.split(".")
     major_tag = split_tag[0]
     major_tag.prepend("v") unless major_tag.start_with?("v")
     @latest_major_version = major_tag
@@ -56,31 +48,10 @@ class Plugin
     cleanup
   end
 
-  def cleanup
-    puts "==> Cleaning up downloaded files..."
-    `rm -rf #{@zip_file}`
-    `rm -rf #{@full_path_to_clone}`
-    `rm -rf #{@tmp_files_for_plugin}`
-  end
-
   private
 
-  def construct_github_https_url
-    credentials = ENV.fetch("GH_ACCOUNT_USERNAME") + ":" + ENV.fetch("GH_ACCOUNT_TOKEN") + "@"
-    url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @slug + ".git"
-    url.insert(8, credentials)
-  end
-
   def tag
-    `git -C #{@full_path_to_clone} tag -f #{@latest_major_version} #{@latest_github_version}`
-  end
-
-  def fetch_latest_github_version
-    puts("==> Querying GitHub for latest version ...")
-    latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
-    # Assume the repo is empty and/or does not have any tags.
-    return "" unless $CHILD_STATUS.success? && latest_github_version.strip != "."
-    "v#{latest_github_version.strip}"
+    `git -C #{@full_path_to_clone} tag -f #{@latest_major_version} #{@latest_plugin_version_on_github}`
   end
 end
 
@@ -133,7 +104,7 @@ class PluginLibraryTagger < AbstractPluginLibraryUpdater
         plugin.update_major_version_tag
         @updated_plugins[plugin.slug] = {
           major_tag: plugin.latest_major_version,
-          corresponding_version: plugin.latest_github_version
+          corresponding_version: plugin.latest_plugin_version_on_github
         }
       rescue PluginUpdateError => e
         @failed_updates[plugin.slug] = e.message

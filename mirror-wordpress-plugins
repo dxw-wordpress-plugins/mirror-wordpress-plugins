@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require_relative "./lib/error_mixin"
+require_relative "./lib/plugin"
 require_relative "./lib/plugin_collection"
 require_relative "./lib/plugin_library_updater"
 require_relative "./lib/plugin_verifier"
@@ -18,20 +19,16 @@ Dotenv.load
 # A PluginUpdater is a representation of a GitHub repository that mirrors a
 # plugin from wordpress.org. PluginUpdaters are responsible for updating
 # their related repositories.
-class PluginUpdater
-  attr_reader :slug, :repo, :github_url, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
+class PluginUpdater < AbstractPlugin
+  attr_reader :topics, :wordpress_api_url, :wordpress_download_link,
     :latest_plugin_version_on_github, :latest_plugin_version_on_wordpress
 
   @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/".freeze
   @@skip_mirror_topic = "skip-mirror".freeze
 
   def initialize(name, github_url, topics)
-    @slug = name
-    @repo = "#{ENV.fetch("GH_ORG_NAME")}/#{@slug}"
-    @github_url = github_url
-    @github_https_url = "#{@github_url}.git"
+    super(name, github_url)
     @topics = topics
-    @full_path_to_clone = File.join(Dir.pwd, @slug)
     @wordpress_api_url = "#{@@wordpress_api_url}#{@slug.downcase}.json"
   end
 
@@ -122,28 +119,7 @@ class PluginUpdater
     cleanup
   end
 
-  def cleanup
-    puts "==> Cleaning up downloaded files..."
-    if dry_run?
-      puts "... -- Dry run mode, leaving downloaded files so they can be manually verified --"
-    else
-      `rm -rf #{@zip_file}`
-      `rm -rf #{@full_path_to_clone}`
-      `rm -rf #{@tmp_files_for_plugin}`
-    end
-  end
-
   private
-
-  def construct_github_https_url
-    credentials = ENV.fetch("GH_ACCOUNT_USERNAME") + ":" + ENV.fetch("GH_ACCOUNT_TOKEN") + "@"
-    url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @slug + ".git"
-    url.insert(8, credentials)
-  end
-
-  def clean_local_files
-    `git -C #{@full_path_to_clone} clean -fd`
-  end
 
   def commit_and_tag
     `git -C #{@full_path_to_clone} add -A -f .`
@@ -151,15 +127,6 @@ class PluginUpdater
     `git -C #{@full_path_to_clone} commit -nm #{@latest_plugin_version_on_wordpress}`
     force_update? ? `git -C #{@full_path_to_clone} tag -f #{@latest_plugin_version_on_wordpress}` : `git -C #{@full_path_to_clone} tag #{@latest_plugin_version_on_wordpress}`
     raise GitError, "Could not create tag #{@latest_plugin_version_on_wordpress}" unless $CHILD_STATUS.success?
-  end
-
-  def fetch_latest_plugin_version_on_github
-    puts("==> Querying GitHub for latest version ...")
-    latest_plugin_version_on_github = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
-    # Assume the repo is empty and/or does not have any tags.
-    return "" if latest_plugin_version_on_github.strip == "."
-    return "" unless $CHILD_STATUS.success?
-    "v#{latest_plugin_version_on_github.strip}"
   end
 
   def fetch_latest_wordpress_info_and_annotate_repo
