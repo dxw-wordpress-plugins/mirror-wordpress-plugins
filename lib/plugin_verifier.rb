@@ -20,7 +20,7 @@ class PluginVerifier
   def verify_checksums
     puts("==> Verifying checksums...")
     checksums = fetch_checksums
-    return if checksums.nil?
+    raise WordPressPluginChecksumsNotFound, "Could not download checksum information for #{@slug}" if checksums.nil?
 
     checksums.each do |file, hashes|
       checksum = hashes["sha256"]

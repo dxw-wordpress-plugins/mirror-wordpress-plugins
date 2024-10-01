@@ -330,6 +330,10 @@ class PluginLibraryUpdater
         @failed_updates[plugin.slug] =
           e.message.empty? ? "could not unzip archive for #{plugin.slug}" : e.message
         next plugin
+      rescue WordPressPluginChecksumsNotFound => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "could not download checksum data for #{plugin.slug}" : e.message
+        next plugin
       rescue WordPressPluginChecksumMismatchError => e
         @failed_updates[plugin.slug] =
           e.message.empty? ? "could not verify file checksums for #{plugin.slug}" : e.message

@@ -31,6 +31,10 @@ end
 class MissingVersionError < PluginUpdateError
 end
 
+# Checksum data not found at wordpress.org for a given plugin.
+class WordPressPluginChecksumsNotFound < PluginUpdateError
+end
+
 # A plugin file did not have the same checksum as the equivalent file on wordpress.org.
 class WordPressPluginChecksumMismatchError < PluginUpdateError
 end
