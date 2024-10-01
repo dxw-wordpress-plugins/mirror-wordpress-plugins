@@ -18,7 +18,7 @@ Dotenv.load
 # their related repositories.
 class PluginUpdater
   attr_reader :slug, :repo, :github_url, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
-    :latest_github_version, :latest_wordpress_version
+    :latest_plugin_version_on_github, :latest_plugin_version_on_wordpress
 
   @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/".freeze
   @@skip_mirror_topic = "skip-mirror".freeze
@@ -38,14 +38,14 @@ class PluginUpdater
   end
 
   def fetch_api_information
-    @latest_github_version = fetch_latest_github_version
-    @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info_and_annotate_repo
-    @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
+    @latest_plugin_version_on_github = fetch_latest_plugin_version_on_github
+    @latest_plugin_version_on_wordpress, @wordpress_download_link = fetch_latest_wordpress_info_and_annotate_repo
+    @zip_file = "#{@full_path_to_clone}-#{@latest_plugin_version_on_wordpress}.zip"
   end
 
   def repos_need_updating?
-    puts "==> #{@slug} is #{@latest_wordpress_version} on WordPress and #{@latest_github_version} on GitHub"
-    if @latest_github_version === "" || @latest_github_version === "v"
+    puts "==> #{@slug} is #{@latest_plugin_version_on_wordpress} on WordPress and #{@latest_plugin_version_on_github} on GitHub"
+    if @latest_plugin_version_on_github === "" || @latest_plugin_version_on_github === "v"
       # Repo is empty, or at least has no tags.
       return true
     end
@@ -53,8 +53,8 @@ class PluginUpdater
     # due to `v...` tags on WordPress that then had `v` prepended to them. Where
     # this has happened once we have deleted the tag, where it has happened on
     # every release we have not.
-    wordpress_semver = @latest_wordpress_version.start_with?("vv") ? Gem::Version.new(@latest_wordpress_version[2..]) : Gem::Version.new(@latest_wordpress_version[1..])
-    github_semver = @latest_github_version.start_with?("vv") ? Gem::Version.new(@latest_github_version[2..]) : Gem::Version.new(@latest_github_version[1..])
+    wordpress_semver = @latest_plugin_version_on_wordpress.start_with?("vv") ? Gem::Version.new(@latest_plugin_version_on_wordpress[2..]) : Gem::Version.new(@latest_plugin_version_on_wordpress[1..])
+    github_semver = @latest_plugin_version_on_github.start_with?("vv") ? Gem::Version.new(@latest_plugin_version_on_github[2..]) : Gem::Version.new(@latest_plugin_version_on_github[1..])
     wordpress_semver > github_semver
   end
 
@@ -146,18 +146,18 @@ class PluginUpdater
   def commit_and_tag
     `git -C #{@full_path_to_clone} add -A -f .`
     `git -C #{@full_path_to_clone} add -u`
-    `git -C #{@full_path_to_clone} commit -nm #{@latest_wordpress_version}`
-    force_update? ? `git -C #{@full_path_to_clone} tag -f #{@latest_wordpress_version}` : `git -C #{@full_path_to_clone} tag #{@latest_wordpress_version}`
-    raise GitError, "Could not create tag #{@latest_wordpress_version}" unless $CHILD_STATUS.success?
+    `git -C #{@full_path_to_clone} commit -nm #{@latest_plugin_version_on_wordpress}`
+    force_update? ? `git -C #{@full_path_to_clone} tag -f #{@latest_plugin_version_on_wordpress}` : `git -C #{@full_path_to_clone} tag #{@latest_plugin_version_on_wordpress}`
+    raise GitError, "Could not create tag #{@latest_plugin_version_on_wordpress}" unless $CHILD_STATUS.success?
   end
 
-  def fetch_latest_github_version
+  def fetch_latest_plugin_version_on_github
     puts("==> Querying GitHub for latest version ...")
-    latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
+    latest_plugin_version_on_github = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
     # Assume the repo is empty and/or does not have any tags.
-    return "" if latest_github_version.strip == "."
+    return "" if latest_plugin_version_on_github.strip == "."
     return "" unless $CHILD_STATUS.success?
-    "v#{latest_github_version.strip}"
+    "v#{latest_plugin_version_on_github.strip}"
   end
 
   def fetch_latest_wordpress_info_and_annotate_repo
@@ -177,8 +177,8 @@ class PluginUpdater
     end
 
     latest_version_no_spaces = plugin_info["version"].tr(" ", "-").to_s
-    latest_wordpress_version = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
-    [latest_wordpress_version.strip, plugin_info["download_link"]]
+    latest_plugin_version_on_wordpress = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
+    [latest_plugin_version_on_wordpress.strip, plugin_info["download_link"]]
   end
 
   def annotate_repo_with_wordpress_metadata(plugin_info)
@@ -307,7 +307,7 @@ class PluginLibraryUpdater
       puts "...mirroring to it now"
       begin
         plugin.update_github_mirror unless plugin.topics.include? PluginUpdater.skip_mirror_topic
-        @updated_plugins[plugin.slug] = plugin.latest_wordpress_version
+        @updated_plugins[plugin.slug] = plugin.latest_plugin_version_on_wordpress
       rescue PluginUpdateError => e
         @failed_updates[plugin.slug] = e.message
         plugin.cleanup
