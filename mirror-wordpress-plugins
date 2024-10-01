@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+require_relative "./lib/error_mixin"
+require_relative "./lib/plugin_verifier"
+
 require "bundler/setup"
 require "dotenv"
 require "English"
@@ -8,35 +11,6 @@ require "rubygems"
 require "zip"
 
 Dotenv.load
-
-# Generic error class, can be caught but should not be raised.
-class PluginUpdateError < StandardError
-end
-
-# Could not retrieve information about a given plugin.
-class WordPressPluginApiError < PluginUpdateError
-end
-
-# Could retrieve API information but it included an error.
-class WordPressPluginJSONContainsError < PluginUpdateError
-  attr_reader :reason
-  def initialize(msg = "Error from wordpress.org", reason = "")
-    @reason = reason
-    super(msg)
-  end
-end
-
-# Could not download a .zip file for a given plugin.
-class WordPressPluginDownloadError < PluginUpdateError
-end
-
-# Could not unzip the .zip file for a given plugin.
-class WordPressPluginUnzipError < PluginUpdateError
-end
-
-# Could not perform Git action on repo. Only useful for interacting with remotes.
-class GitError < PluginUpdateError
-end
 
 # A PluginUpdater is a representation of a GitHub repository that mirrors a
 # plugin from wordpress.org. PluginUpdaters are responsible for updating
@@ -124,6 +98,9 @@ class PluginUpdater
     extract_zip(@zip_file, Dir.pwd)
     puts "==> Committing and tagging the repo with full tag..."
     commit_and_tag
+    clean_local_files
+    verifier = PluginVerifier.new(@slug, @latest_wordpress_version, @full_path_to_clone)
+    verifier.verify_checksums # Raises WordPressPluginChecksumMismatchError
     `git -C #{@full_path_to_clone} status`
     puts "==> Updating the GitHub repo..."
     if dry_run?
@@ -153,6 +130,10 @@ class PluginUpdater
     credentials = ENV.fetch("GH_ACCOUNT_USERNAME") + ":" + ENV.fetch("GH_ACCOUNT_TOKEN") + "@"
     url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @slug + ".git"
     url.insert(8, credentials)
+  end
+
+  def clean_local_files
+    `git -C #{@full_path_to_clone} clean -fd`
   end
 
   def commit_and_tag
@@ -348,6 +329,14 @@ class PluginLibraryUpdater
       rescue WordPressPluginUnzipError => e
         @failed_updates[plugin.slug] =
           e.message.empty? ? "could not unzip archive for #{plugin.slug}" : e.message
+        next plugin
+      rescue WordPressPluginChecksumsNotFound => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "could not download checksum data for #{plugin.slug}" : e.message
+        next plugin
+      rescue WordPressPluginChecksumMismatchError => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "could not verify file checksums for #{plugin.slug}" : e.message
         next plugin
       end
       if !plugin.repos_need_updating?
