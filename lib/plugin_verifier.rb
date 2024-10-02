@@ -9,7 +9,7 @@ require "digest"
 class PluginVerifier
   attr_reader :slug, :full_path_to_clone, :checksum_url
 
-  @@checksum_api = "https://downloads.wordpress.org/plugin-checksums/".freeze
+  @@checksum_api = "https://downloads.wordpress.org/plugin-checksums".freeze
 
   def initialize(slug, version, path)
     @slug = slug
