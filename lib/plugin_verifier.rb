@@ -49,7 +49,7 @@ class PluginVerifier
   def fetch_checksums
     puts("==> Querying api.wordpress.org for checksums ...")
     api_info = `curl -s #{@checksum_url}`
-    raise WordPressPluginApiError, "No WordPress API info available for #{@slug}" if api_info.nil?
+    raise WordPressPluginChecksumsNotFound, "No plugin checksums available for #{@slug} v#{@clean_version}" if api_info.nil?
 
     begin
       checksum_info = JSON.parse(api_info)
