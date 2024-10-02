@@ -30,13 +30,17 @@ class PluginVerifier
         raise WordPressPluginChecksumMismatchError, "#{file} checksum mismatch. File does not exist in GitHub repository."
       end
       calculated_checksum = calculate_checksum(path)
-      if calculated_checksum != checksum
+      if !checksums_match?(checksum, calculated_checksum)
         raise WordPressPluginChecksumMismatchError, "#{file} checksum mismatch. Expected: #{checksum}, Calculated: #{calculated_checksum}"
       end
     end
   end
 
   private
+
+  def checksums_match?(expected, calculated)
+    (expected.is_a?(Array) && expected.include?(calculated)) || (expected.is_a?(String) && calculated === expected)
+  end
 
   def calculate_checksum(path)
     Digest::SHA256.file(path).hexdigest
