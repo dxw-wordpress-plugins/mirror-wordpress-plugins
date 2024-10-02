@@ -25,7 +25,11 @@ class PluginVerifier
 
     checksums.each do |file, hashes|
       checksum = hashes["sha256"]
-      calculated_checksum = calculate_checksum(File.join(@full_path_to_clone, file))
+      path = File.join(@full_path_to_clone, file)
+      if !File.file?(path)
+        raise WordPressPluginChecksumMismatchError, "#{file} checksum mismatch. File does not exist in GitHub repository."
+      end
+      calculated_checksum = calculate_checksum(path)
       if calculated_checksum != checksum
         raise WordPressPluginChecksumMismatchError, "#{file} checksum mismatch. Expected: #{checksum}, Calculated: #{calculated_checksum}"
       end
