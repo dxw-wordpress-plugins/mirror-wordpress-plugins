@@ -14,7 +14,8 @@ class PluginVerifier
   def initialize(slug, version, path)
     @slug = slug
     @full_path_to_clone = path
-    @checksum_url = [@@checksum_api, @slug, version + ".json"].join("/")
+    @clean_version = version.start_with?("v") ? version[1..] : version
+    @checksum_url = [@@checksum_api, @slug, @clean_version + ".json"].join("/")
   end
 
   def verify_checksums
