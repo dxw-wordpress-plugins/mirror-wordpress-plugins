@@ -19,7 +19,7 @@ class PluginVerifier
   end
 
   def verify_checksums
-    puts("==> Verifying checksums...")
+    puts("==> Verifying checksums for #{@slug} v#{@clean_version}...")
     checksums = fetch_checksums
     raise WordPressPluginChecksumsNotFound, "Could not download checksum information for #{@slug}" if checksums.nil?
 
