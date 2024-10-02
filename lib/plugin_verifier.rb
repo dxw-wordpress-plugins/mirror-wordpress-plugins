@@ -10,6 +10,13 @@ class PluginVerifier
   attr_reader :slug, :full_path_to_clone, :checksum_url
 
   @@checksum_api = "https://downloads.wordpress.org/plugin-checksums".freeze
+  # .git is from jw-player-7-for-wp
+  # Gruntfile.js from simple-lightbox
+  # README.md from Widget-CSS-Classes
+  @@ignored_files = ["readme", "readme.txt", "readme.md", "readme.html", "README",
+    "README.txt", "README.md", "README.html", "changelog",
+    "changelog.txt", "ChangeLog", "CHANGELOG", "Gruntfile.js",
+    ".git"]
 
   def initialize(slug, version, path)
     @slug = slug
@@ -24,6 +31,8 @@ class PluginVerifier
     raise WordPressPluginChecksumsNotFound, "Could not download checksum information for #{@slug}" if checksums.nil?
 
     checksums.each do |file, hashes|
+      next if @@ignored_files.include?(file)
+
       checksum = hashes["sha256"]
       path = File.join(@full_path_to_clone, file)
       if !File.file?(path)
