@@ -96,14 +96,20 @@ class PluginUpdater
     # Then unzip into the Git directory
     puts "==> Extracting the latest release from the archive file..."
     extract_zip(@zip_file, Dir.pwd)
-    puts "==> Committing and tagging the repo with full tag..."
-    commit_and_tag
-    clean_local_files
-    verifier = PluginVerifier.new(@slug, @latest_wordpress_version, @full_path_to_clone)
-    verifier.verify_checksums # Raises WordPressPluginChecksumMismatchError
+    if do_not_clone?
+      puts "==> Skipping Git commit and tag operations since the NO_CLONE_MIRROR variable is set"
+      puts "==> Skipping cleaning local repo clone since the NO_CLONE_MIRROR variable is set"
+      puts "==> Skipping plugin checksum verification since the NO_CLONE_MIRROR variable is set"
+    else
+      puts "==> Committing and tagging the repo with full tag..."
+      commit_and_tag
+      clean_local_files
+      verifier = PluginVerifier.new(@slug, @latest_wordpress_version, @full_path_to_clone)
+      verifier.verify_checksums # Raises WordPressPluginChecksumMismatchError
+    end
     `git -C #{@full_path_to_clone} status`
     puts "==> Updating the GitHub repo..."
-    if dry_run?
+    if dry_run? || do_not_clone?
       puts "... -- Dry run mode, no repo pushing taking place --"
     else
       `git -C #{@full_path_to_clone} push`
