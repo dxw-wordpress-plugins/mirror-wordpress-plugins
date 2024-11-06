@@ -38,7 +38,8 @@ class AbstractPlugin
 
   def fetch_latest_plugin_version_on_github
     puts("==> Querying GitHub for latest version ...")
-    @latest_plugin_version_on_github = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
+    gh_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
+    @latest_plugin_version_on_github = gh_version.strip
     # Assume the repo is empty and/or does not have any tags.
     return "" unless $CHILD_STATUS.success? && @latest_plugin_version_on_github.strip != "."
     "v#{@latest_plugin_version_on_github}"
