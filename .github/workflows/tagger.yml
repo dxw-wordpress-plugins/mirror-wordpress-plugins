@@ -1,7 +1,7 @@
 name: Apply major version tags to plugin repos on GitHub
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   schedule:
     - cron: '0 */2 * * *'  # Runs every 2 hours
 
