@@ -1,7 +1,11 @@
 #!/usr/bin/env ruby
 
 require_relative "./lib/error_mixin"
+require_relative "./lib/plugin"
+require_relative "./lib/plugin_collection"
+require_relative "./lib/plugin_library_updater"
 require_relative "./lib/plugin_verifier"
+require_relative "./lib/repository_topic"
 
 require "bundler/setup"
 require "dotenv"
@@ -15,20 +19,16 @@ Dotenv.load
 # A PluginUpdater is a representation of a GitHub repository that mirrors a
 # plugin from wordpress.org. PluginUpdaters are responsible for updating
 # their related repositories.
-class PluginUpdater
-  attr_reader :slug, :repo, :github_url, :topics, :full_path_to_clone, :wordpress_api_url, :wordpress_download_link,
-    :latest_github_version, :latest_wordpress_version
+class PluginUpdater < AbstractPlugin
+  attr_reader :topics, :wordpress_api_url, :wordpress_download_link,
+    :latest_plugin_version_on_github, :latest_plugin_version_on_wordpress
 
   @@wordpress_api_url = "https://api.wordpress.org/plugins/info/1.0/".freeze
   @@skip_mirror_topic = "skip-mirror".freeze
 
   def initialize(name, github_url, topics)
-    @slug = name
-    @repo = "#{ENV.fetch("GH_ORG_NAME")}/#{@slug}"
-    @github_url = github_url
-    @github_https_url = "#{@github_url}.git"
+    super(name, github_url)
     @topics = topics
-    @full_path_to_clone = File.join(Dir.pwd, @slug)
     @wordpress_api_url = "#{@@wordpress_api_url}#{@slug.downcase}.json"
   end
 
@@ -37,14 +37,14 @@ class PluginUpdater
   end
 
   def fetch_api_information
-    @latest_github_version = fetch_latest_github_version
-    @latest_wordpress_version, @wordpress_download_link = fetch_latest_wordpress_info_and_annotate_repo
-    @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
+    @latest_plugin_version_on_github = fetch_latest_plugin_version_on_github
+    @latest_plugin_version_on_wordpress, @wordpress_download_link = fetch_latest_wordpress_info_and_annotate_repo
+    @zip_file = "#{@full_path_to_clone}-#{@latest_plugin_version_on_wordpress}.zip"
   end
 
   def repos_need_updating?
-    puts "==> #{@slug} is #{@latest_wordpress_version} on WordPress and #{@latest_github_version} on GitHub"
-    if @latest_github_version === "" || @latest_github_version === "v"
+    puts "==> #{@slug} is #{@latest_plugin_version_on_wordpress} on WordPress and #{@latest_plugin_version_on_github} on GitHub"
+    if @latest_plugin_version_on_github === "" || @latest_plugin_version_on_github === "v"
       # Repo is empty, or at least has no tags.
       return true
     end
@@ -52,8 +52,8 @@ class PluginUpdater
     # due to `v...` tags on WordPress that then had `v` prepended to them. Where
     # this has happened once we have deleted the tag, where it has happened on
     # every release we have not.
-    wordpress_semver = @latest_wordpress_version.start_with?("vv") ? Gem::Version.new(@latest_wordpress_version[2..]) : Gem::Version.new(@latest_wordpress_version[1..])
-    github_semver = @latest_github_version.start_with?("vv") ? Gem::Version.new(@latest_github_version[2..]) : Gem::Version.new(@latest_github_version[1..])
+    wordpress_semver = @latest_plugin_version_on_wordpress.start_with?("vv") ? Gem::Version.new(@latest_plugin_version_on_wordpress[2..]) : Gem::Version.new(@latest_plugin_version_on_wordpress[1..])
+    github_semver = @latest_plugin_version_on_github.start_with?("vv") ? Gem::Version.new(@latest_plugin_version_on_github[2..]) : Gem::Version.new(@latest_plugin_version_on_github[1..])
     wordpress_semver > github_semver
   end
 
@@ -119,44 +119,14 @@ class PluginUpdater
     cleanup
   end
 
-  def cleanup
-    puts "==> Cleaning up downloaded files..."
-    if dry_run?
-      puts "... -- Dry run mode, leaving downloaded files so they can be manually verified --"
-    else
-      `rm -rf #{@zip_file}`
-      `rm -rf #{@full_path_to_clone}`
-      `rm -rf #{@tmp_files_for_plugin}`
-    end
-  end
-
   private
-
-  def construct_github_https_url
-    credentials = ENV.fetch("GH_ACCOUNT_USERNAME") + ":" + ENV.fetch("GH_ACCOUNT_TOKEN") + "@"
-    url = "https://github.com/" + ENV.fetch("GH_ORG_NAME") + "/" + @slug + ".git"
-    url.insert(8, credentials)
-  end
-
-  def clean_local_files
-    `git -C #{@full_path_to_clone} clean -fd`
-  end
 
   def commit_and_tag
     `git -C #{@full_path_to_clone} add -A -f .`
     `git -C #{@full_path_to_clone} add -u`
-    `git -C #{@full_path_to_clone} commit -nm #{@latest_wordpress_version}`
-    force_update? ? `git -C #{@full_path_to_clone} tag -f #{@latest_wordpress_version}` : `git -C #{@full_path_to_clone} tag #{@latest_wordpress_version}`
-    raise GitError, "Could not create tag #{@latest_wordpress_version}" unless $CHILD_STATUS.success?
-  end
-
-  def fetch_latest_github_version
-    puts("==> Querying GitHub for latest version ...")
-    latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
-    # Assume the repo is empty and/or does not have any tags.
-    return "" if latest_github_version.strip == "."
-    return "" unless $CHILD_STATUS.success?
-    "v#{latest_github_version.strip}"
+    `git -C #{@full_path_to_clone} commit -nm #{@latest_plugin_version_on_wordpress}`
+    force_update? ? `git -C #{@full_path_to_clone} tag -f #{@latest_plugin_version_on_wordpress}` : `git -C #{@full_path_to_clone} tag #{@latest_plugin_version_on_wordpress}`
+    raise GitError, "Could not create tag #{@latest_plugin_version_on_wordpress}" unless $CHILD_STATUS.success?
   end
 
   def fetch_latest_wordpress_info_and_annotate_repo
@@ -176,8 +146,8 @@ class PluginUpdater
     end
 
     latest_version_no_spaces = plugin_info["version"].tr(" ", "-").to_s
-    latest_wordpress_version = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
-    [latest_wordpress_version.strip, plugin_info["download_link"]]
+    latest_plugin_version_on_wordpress = latest_version_no_spaces.start_with?("v") ? latest_version_no_spaces : "v#{latest_version_no_spaces}"
+    [latest_plugin_version_on_wordpress.strip, plugin_info["download_link"]]
   end
 
   def annotate_repo_with_wordpress_metadata(plugin_info)
@@ -219,61 +189,9 @@ class PluginUpdater
   end
 end
 
-# A repository topic is a single piece of metadata displayed on the repo page.
-# This class takes strings, which will usually be from the WordPress API into
-# a repository topic which can be added or removed from a repository.
-#
-# Example error and `reason_text` JSON values include that might be used as
-# topics include:
-#
-#   * closed
-#   * Plugin not found.
-#   * Guideline Violation
-#   * Security Issue
-#
-# These are not documented and not in a consistent format. So, we remove
-# any punctuation and replace spacing with dashes before storing the string.
-class RepositoryTopic
-  @@separator = "-".freeze
-
-  attr_reader :value, :repo
-
-  def initialize(text, repo, prefix = "")
-    clean_text = text.to_s.gsub(/[^a-z0-9\-\s]/i, "").downcase.gsub(/\s+/, "-")
-    @value = prefix.nil? || prefix.empty? ? clean_text : "#{prefix}#{@@separator}#{clean_text}"
-    @repo = repo
-  end
-
-  def add_to_repo
-    puts "==> Adding topic #{@value} to repo..."
-    edit_repo("add")
-  end
-
-  def remove_from_repo
-    puts "==> Removing topic #{@value} from repo..."
-    edit_repo("remove")
-  end
-
-  private
-
-  def edit_repo(action)
-    if dry_run? && !force_annotation?
-      puts "... -- Dry run mode, no repo edits taking place --"
-    else
-      `gh repo edit #{@repo} --#{action}-topic #{@value}`
-    end
-  end
-end
-
 # Get information about organisation plugins from GitHub and transform into an
 # array of PluginUpdater objects.
-class PluginUpdaterBuilder
-  @@max_repos_in_library = 99_999 # Effectively unlimited.
-
-  def initialize
-    @plugins = []
-  end
-
+class PluginCollection < AbstractPluginCollection
   def build
     projects = JSON.parse(plugin_library_repos)
     puts "==> Found #{projects.size} plugins in the library"
@@ -286,30 +204,21 @@ class PluginUpdaterBuilder
     end
     @plugins
   end
-
-  private
-
-  def plugin_library_repos
-    puts "==> Fetching all GitHub plugin repositories in the library..."
-    `gh repo list #{ENV.fetch("GH_ORG_NAME")} --limit=#{@@max_repos_in_library} --json=name,url,repositoryTopics --no-archived`
-  end
 end
 
 # Update all repositories in a GitHub organisation, assuming each one has been
 # mirrored from wordpress.org. Optionally print a summary of the updates
 # that have been performed or have errored.
-class PluginLibraryUpdater
+class PluginLibraryUpdater < AbstractPluginLibraryUpdater
   def initialize
-    @failed_updates = {}
-    @updated_plugins = {}
-    @skipped_plugins = []
     @start_time = nil
     @end_time = nil
+    super
   end
 
   def update
     @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    plugins = PluginUpdaterBuilder.new.build
+    plugins = PluginCollection.new.build
     plugins.each do |plugin|
       hrule
       puts "==> Checking status of #{plugin.slug}..."
@@ -352,34 +261,18 @@ class PluginLibraryUpdater
       puts "...mirroring to it now"
       begin
         plugin.update_github_mirror unless plugin.topics.include? PluginUpdater.skip_mirror_topic
-        @updated_plugins[plugin.slug] = plugin.latest_wordpress_version
+        @updated_plugins[plugin.slug] = plugin.latest_plugin_version_on_wordpress
       rescue PluginUpdateError => e
         @failed_updates[plugin.slug] = e.message
         plugin.cleanup
       end
     end
     @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  end
-
-  def print_summary
-    print_skipped_plugin_summary
-    print_updated_plugin_summary
-    print_failed_plugin_summary
-    hrule
     elapsed_time = @end_time - @start_time
     puts "==> Mirroring plugins took: #{(elapsed_time / 60).round}m#{(elapsed_time % 60).round}s."
   end
 
   private
-
-  def print_skipped_plugin_summary
-    return if @skipped_plugins.empty?
-
-    hrule
-    puts "==> Skipped the following #{@skipped_plugins.size} plugin(s):"
-    puts
-    puts @skipped_plugins
-  end
 
   def print_updated_plugin_summary
     return if @updated_plugins.empty?
@@ -389,23 +282,6 @@ class PluginLibraryUpdater
     @updated_plugins.each do |name, version|
       puts "#{name} updated to version #{version}"
     end
-  end
-
-  def print_failed_plugin_summary
-    return if @failed_updates.empty?
-
-    hrule
-    puts "==> Failed to update the following #{@failed_updates.size} plugin(s):"
-    @failed_updates.each do |name, error_message|
-      puts
-      puts "*** #{name} failed to update with message:"
-      puts error_message
-    end
-  end
-
-  def hrule
-    puts
-    puts "-----------------------------------------------------------------------"
   end
 end
 
