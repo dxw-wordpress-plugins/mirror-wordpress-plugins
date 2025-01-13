@@ -34,6 +34,7 @@ class PluginVerifier
       next if @@ignored_files.include?(file.downcase)
       # This is a mistake that comes from using SVN repos and occurred in
       # geo-my-wp v4.5.2
+      next if file.start_with?("trunk/")
       next if @@ignored_exts.any? { |ext| file.downcase.end_with?(ext) }
 
       checksum = hashes["sha256"]
