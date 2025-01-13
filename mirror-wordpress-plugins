@@ -353,6 +353,12 @@ class PluginLibraryUpdater
       begin
         plugin.update_github_mirror unless plugin.topics.include? PluginUpdater.skip_mirror_topic
         @updated_plugins[plugin.slug] = plugin.latest_wordpress_version
+      rescue WordPressPluginChecksumsNotFound => e
+        @failed_updates[plugin.slug] = e.message
+        plugin.cleanup
+      rescue WordPressPluginChecksumMismatchError => e
+        @failed_updates[plugin.slug] = e.message
+        plugin.cleanup
       rescue PluginUpdateError => e
         @failed_updates[plugin.slug] = e.message
         plugin.cleanup
