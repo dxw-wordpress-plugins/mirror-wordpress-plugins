@@ -15,6 +15,8 @@ class PluginVerifier
   # README.md from Widget-CSS-Classes
   @@ignored_files = ["readme", "readme.txt", "readme.md", "readme.html", "changelog",
     "changelog.txt", "Gruntfile.js", ".git"]
+  # geo-my-wp v4.5.2
+  @@ignored_exts = [".mo", ".po"]
 
   def initialize(slug, version, path)
     @slug = slug
@@ -30,6 +32,10 @@ class PluginVerifier
 
     checksums.each do |file, hashes|
       next if @@ignored_files.include?(file.downcase)
+      # This is a mistake that comes from using SVN repos and occurred in
+      # geo-my-wp v4.5.2
+      next if file.start_with?("trunk/")
+      next if @@ignored_exts.any? { |ext| file.downcase.end_with?(ext) }
 
       checksum = hashes["sha256"]
       path = File.join(@full_path_to_clone, file)
