@@ -11,12 +11,18 @@ class PluginVerifier
 
   @@checksum_api = "https://downloads.wordpress.org/plugin-checksums".freeze
   # .git is from jw-player-7-for-wp
+  # .gitignore and .gitattributes is from geo-my-wp
+  # composer and package files are from geo-my-wp
+  # phpcs files are from geo-my-wp
   # Gruntfile.js from simple-lightbox
   # README.md from Widget-CSS-Classes
   @@ignored_files = ["readme", "readme.txt", "readme.md", "readme.html", "changelog",
-    "changelog.txt", "Gruntfile.js", ".gitattributes", ".git"]
+    "changelog.txt", "Gruntfile.js", ".gitattributes", ".gitignore", ".git", "composer.json",
+    "composer.lock", "package.json", "package.lock", "phpcs.xml.dist"]
   # geo-my-wp v4.5.2
   @@ignored_exts = [".mo", ".po"]
+  # geo-my-wp v4.5.2 and v4.5.3
+  @@ignored_dirs = ["trunk/", ".vscode/", "scripts/"]
 
   def initialize(slug, version, path)
     @slug = slug
@@ -34,8 +40,8 @@ class PluginVerifier
       next if @@ignored_files.include?(file.downcase)
       # This is a mistake that comes from using SVN repos and occurred in
       # geo-my-wp v4.5.2
-      next if file.start_with?("trunk/")
       next if @@ignored_exts.any? { |ext| file.downcase.end_with?(ext) }
+      next if @@ignored_dirs.any? { |prefix| file.downcase.start_with?(prefix) }
 
       checksum = hashes["sha256"]
       path = File.join(@full_path_to_clone, file)
