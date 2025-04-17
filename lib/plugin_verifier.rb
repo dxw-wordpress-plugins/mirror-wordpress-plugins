@@ -14,7 +14,7 @@ class PluginVerifier
   # Gruntfile.js from simple-lightbox
   # README.md from Widget-CSS-Classes
   @@ignored_files = ["readme", "readme.txt", "readme.md", "readme.html", "changelog",
-    "changelog.txt", "Gruntfile.js", ".git"]
+    "changelog.txt", "Gruntfile.js", ".gitattributes", ".git"]
   # geo-my-wp v4.5.2
   @@ignored_exts = [".mo", ".po"]
 
