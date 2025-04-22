@@ -45,13 +45,6 @@ jobs:
         run: |
           ./apply-major-version-tags
 
-      - name: Keep workflow alive
-        uses: gautamkrishnar/keepalive-workflow@2.0.1
-        with:
-          commit_message: Automated commit by Keepalive Workflow to keep the repository active [skip ci]
-          committer_username: dxw-govpress-tools
-          committer_email: team+govpress-tools@govpress.com
-
       - name: Alert Slack if failure
         if: ${{ failure() }}
         uses: slackapi/slack-github-action@v1.23.0
@@ -60,3 +53,11 @@ jobs:
           slack-message: "The scheduled task to apply major tags to GitHub plugin repos [EXPERIMENTAL BRANCH] has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/tagger.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+  workflow-keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@f72ff1a1336129f29bf0166c0fd0ca6cf1bcb38c
