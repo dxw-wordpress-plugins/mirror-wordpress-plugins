@@ -10,6 +10,7 @@ class PluginVerifier
   attr_reader :slug, :full_path_to_clone, :checksum_url
 
   @@checksum_api = "https://downloads.wordpress.org/plugin-checksums".freeze
+  # .editorconfig from duplicator
   # .git is from jw-player-7-for-wp
   # .gitignore and .gitattributes is from geo-my-wp
   # composer and package files are from geo-my-wp
@@ -17,9 +18,9 @@ class PluginVerifier
   # Gruntfile.js from simple-lightbox
   # README.md from Widget-CSS-Classes
   @@ignored_files = ["readme", "readme.txt", "readme.md", "readme.html", "changelog",
-    "changelog.md", "changelog.txt", "Gruntfile.js", ".gitattributes", ".gitignore",
-    ".git", "composer.json", "composer.lock", "package.json", "package.lock",
-    "phpcs.xml.dist"]
+    "changelog.md", "changelog.txt", "Gruntfile.js", ".editorconfig", ".gitattributes",
+    ".gitignore", ".git", "composer.json", "composer.lock", "package.json",
+    "package.lock", "phpcs.xml.dist"]
   # geo-my-wp v4.5.2
   @@ignored_exts = [".mo", ".po"]
   # geo-my-wp v4.5.2 and v4.5.3
