@@ -42,6 +42,10 @@ class PluginUpdater
     @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
   end
 
+  def to_semver(semver)
+    semver.start_with?("vv") ? Gem::Version.new(semver[2..].clone) : Gem::Version.new(semver[1..].clone)
+  end
+
   def repos_need_updating?
     puts "==> #{@slug} is #{@latest_wordpress_version} on WordPress and #{@latest_github_version} on GitHub"
     if @latest_github_version === "" || @latest_github_version === "v"
@@ -52,8 +56,8 @@ class PluginUpdater
     # due to `v...` tags on WordPress that then had `v` prepended to them. Where
     # this has happened once we have deleted the tag, where it has happened on
     # every release we have not.
-    wordpress_semver = @latest_wordpress_version.start_with?("vv") ? Gem::Version.new(@latest_wordpress_version[2..]) : Gem::Version.new(@latest_wordpress_version[1..])
-    github_semver = @latest_github_version.start_with?("vv") ? Gem::Version.new(@latest_github_version[2..]) : Gem::Version.new(@latest_github_version[1..])
+    wordpress_semver = to_semver(@latest_wordpress_version)
+    github_semver = to_semver(@latest_github_version)
     wordpress_semver > github_semver
   end
 
