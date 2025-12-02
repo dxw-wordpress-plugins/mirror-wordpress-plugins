@@ -42,6 +42,13 @@ class PluginUpdater
     @zip_file = "#{@full_path_to_clone}-#{@latest_wordpress_version}.zip"
   end
 
+  # A version if considered "prerelease" if it contains a letter.
+  # e.g. v1.2.3-alpha
+  def is_prerelease?
+    wordpress_semver = to_semver(@latest_wordpress_version)
+    wordpress_semver.prerelease?
+  end
+
   def to_semver(semver)
     semver.start_with?("vv") ? Gem::Version.new(semver[2..].clone) : Gem::Version.new(semver[1..].clone)
   end
@@ -348,6 +355,10 @@ class PluginLibraryUpdater
         @failed_updates[plugin.slug] =
           e.message.empty? ? "could not verify file checksums for #{plugin.slug}" : e.message
         next plugin
+      end
+      if plugin.is_prerelease?
+        puts "...which does not have a stable semver version (#{plugin.latest_wordpress_version})"
+        next plugin unless force_update?
       end
       if !plugin.repos_need_updating?
         puts "...which is already up to date with WordPress.org"
