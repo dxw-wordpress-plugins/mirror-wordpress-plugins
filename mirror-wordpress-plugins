@@ -206,7 +206,7 @@ class PluginUpdater
       puts "==> Downloading #{@wordpress_download_link}..."
       response_code = `curl -o /dev/null -s -I -w "%{http_code}" #{@wordpress_download_link}`.chomp
       if response_code != "200"
-        raise WordPressPluginDownloadError, "#{@wordpress_download_link} does not return a 200 OK response"
+        raise WordPressPluginDownloadError, "#{@wordpress_download_link} returned http #{response_code}"
       end
       `curl -s #{@wordpress_download_link} --output #{zip_file}`
     end
