@@ -36,6 +36,7 @@ jobs:
           git config --global user.name "WordPress plugin mirror robot"
 
       - name: Mirror WordPress plugins
+        id: mirror
         env:
           GH_ACCOUNT_USERNAME: ${{ secrets.GH_ACCOUNT_USERNAME }}
           GH_ACCOUNT_TOKEN: ${{ secrets.GH_ACCOUNT_TOKEN }}
@@ -45,9 +46,48 @@ jobs:
           FORCE_ANNOTATION: ${{ secrets.FORCE_ANNOTATION }}
           ANNOTATE_SKIPPED_REPOS: ${{ secrets.ANNOTATE_SKIPPED_REPOS }}
         run: |
-          ./mirror-wordpress-plugins
+          ./mirror-wordpress-plugins | tee output.txt
+          COULD_NOT_MIRROR=$(cat output.txt | awk '/^---/ && flag {exit} /==> Failed to update/ {flag=1; next} flag' | jq -Rs .)
+          echo "DEBUG: Messages captured:"
+          echo "$COULD_NOT_MIRROR"
+          echo "DEBUG: Length: ${#COULD_NOT_MIRROR}"
+          if [ -n "$COULD_NOT_MIRROR" ] ; then
+            echo "messages=$COULD_NOT_MIRROR" >> $GITHUB_OUTPUT
+            echo 'ALERT_SLACK=1' >> $GITHUB_ENV
+          fi
 
-      - name: Alert Slack if failure
+      - name: Alert Slack if plugins have failed to mirror
+        if: env.ALERT_SLACK == '1'
+        uses: slackapi/slack-github-action@v2
+        with:
+          method: chat.postMessage
+          payload-templated: true
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Some WordPress plugins could not be mirrored automatically!*"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ${{ steps.mirror.outputs.messages }}
+                  }
+                }
+              ]
+            }
+
+      - name: Alert Slack if failure  # Runs if the whole mirror process fails with non-zero exit code.
         if: ${{ failure() }}
         uses: slackapi/slack-github-action@v1.23.0
         with:
