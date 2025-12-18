@@ -418,9 +418,7 @@ class PluginLibraryUpdater
     hrule
     puts "==> Failed to update the following #{@failed_updates.size} plugin(s):"
     @failed_updates.each do |name, error_message|
-      puts
-      puts "*** #{name} failed to update with message:"
-      puts error_message
+      puts "* #{name} failed to update with message: #{error_message}"
     end
   end
 
