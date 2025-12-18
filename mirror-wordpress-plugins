@@ -374,6 +374,9 @@ class PluginLibraryUpdater
       rescue WordPressPluginChecksumMismatchError => e
         @failed_updates[plugin.slug] = e.message
         plugin.cleanup
+      rescue GitError => e
+        @failed_updates[plugin.slug] = e.message
+        plugin.cleanup
       rescue PluginUpdateError => e
         @failed_updates[plugin.slug] = e.message
         plugin.cleanup
