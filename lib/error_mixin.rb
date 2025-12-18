@@ -27,6 +27,10 @@ end
 class GitError < PluginUpdateError
 end
 
+# Bad response or no response from the GitHub API.
+class GitHubAPIError < PluginUpdateError
+end
+
 # Could not find a latest version tag for the plugin
 class MissingVersionError < PluginUpdateError
 end
