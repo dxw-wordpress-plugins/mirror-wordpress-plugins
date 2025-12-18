@@ -17,10 +17,12 @@ class PluginVerifier
   # phpcs files are from geo-my-wp
   # Gruntfile.js from simple-lightbox
   # README.md from Widget-CSS-Classes
+  # images/placeholder.png for categories-images 3.2.0, see also:
+  # https://wordpress.org/support/topic/removed-file-still-appears-in-checksum-api/
   @@ignored_files = ["readme", "readme.txt", "readme.md", "readme.html", "changelog",
     "changelog.md", "changelog.txt", "Gruntfile.js", ".editorconfig", ".gitattributes",
     ".gitignore", ".git", "composer.json", "composer.lock", "package.json",
-    "package.lock", "phpcs.xml.dist"]
+    "package.lock", "phpcs.xml.dist", "images/placeholder.png"]
   # geo-my-wp v4.5.2
   @@ignored_exts = [".mo", ".po"]
   # geo-my-wp v4.5.2 and v4.5.3
