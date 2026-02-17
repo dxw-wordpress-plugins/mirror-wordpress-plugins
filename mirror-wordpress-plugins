@@ -58,7 +58,7 @@ class PluginUpdater
     if @latest_github_version === "" || @latest_github_version === "v"
       # Repo is empty, has no tags or for some other reason we could not get a
       # valid tag from GitHub API.
-      return false
+      raise GitHubAPIError, "Could not determine a semver version from GitHub repo"
     end
     # We have sometimes ended up with tags that start `vv` instead of `v`. Probably
     # due to `v...` tags on WordPress that then had `v` prepended to them. Where
@@ -332,6 +332,10 @@ class PluginLibraryUpdater
           next
         end
         plugin.fetch_api_information
+      rescue GitHubAPIError => e
+        @failed_updates[plugin.slug] =
+          e.message.empty? ? "received error from GitHub API for #{plugin.slug}" : e.message
+        next plugin
       rescue WordPressPluginApiError => e
         @failed_updates[plugin.slug] =
           e.message.empty? ? "wordpress.org does not have a plugin called #{plugin.slug}" : e.message
