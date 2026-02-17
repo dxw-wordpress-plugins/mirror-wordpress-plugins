@@ -56,8 +56,9 @@ class PluginUpdater
   def repos_need_updating?
     puts "==> #{@slug} is #{@latest_wordpress_version} on WordPress and #{@latest_github_version} on GitHub"
     if @latest_github_version === "" || @latest_github_version === "v"
-      # Repo is empty, or at least has no tags.
-      return true
+      # Repo is empty, has no tags or for some other reason we could not get a
+      # valid tag from GitHub API.
+      return false
     end
     # We have sometimes ended up with tags that start `vv` instead of `v`. Probably
     # due to `v...` tags on WordPress that then had `v` prepended to them. Where
