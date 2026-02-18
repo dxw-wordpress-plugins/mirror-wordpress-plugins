@@ -38,3 +38,7 @@ end
 # A plugin file did not have the same checksum as the equivalent file on wordpress.org.
 class WordPressPluginChecksumMismatchError < PluginUpdateError
 end
+
+# Did not get a valid response from GitHub.
+class GitHubAPIError < PluginUpdateError
+end
