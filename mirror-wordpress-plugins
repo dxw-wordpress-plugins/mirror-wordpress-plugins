@@ -165,9 +165,9 @@ class PluginUpdater
   def fetch_latest_github_version
     puts("==> Querying GitHub for latest version ...")
     latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
+    raise GitHubAPIError, "gh failed with: #{stderr.strip}" unless $CHILD_STATUS.success?
     # Assume the repo is empty and/or does not have any tags.
     return "" if latest_github_version.strip == "."
-    return "" unless $CHILD_STATUS.success?
     "v#{latest_github_version.strip}"
   end
 
@@ -377,6 +377,12 @@ class PluginLibraryUpdater
         @failed_updates[plugin.slug] = e.message
         plugin.cleanup
       rescue WordPressPluginChecksumMismatchError => e
+        @failed_updates[plugin.slug] = e.message
+        plugin.cleanup
+      rescue GitError => e
+        @failed_updates[plugin.slug] = e.message
+        plugin.cleanup
+      rescue GitHubApiError => e
         @failed_updates[plugin.slug] = e.message
         plugin.cleanup
       rescue PluginUpdateError => e
