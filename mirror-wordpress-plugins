@@ -173,6 +173,7 @@ class PluginUpdater
       puts "Repository is empty, assume an empty tag."
       return "v0.0" if parsed["message"] == "Git Repository is empty."
     end
+    puts "GitHub returned status code #{status_code} when querying repo for semver tag." unless status_code == 200
     latest_github_version = body
       .lines
       .map { |l| l.split("/").last }
