@@ -164,7 +164,23 @@ class PluginUpdater
 
   def fetch_latest_github_version
     puts("==> Querying GitHub for latest version ...")
-    latest_github_version = `gh api repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref' | cut -d '/' -f 3 | grep -Eo "[0-9\.]+" | sort -V | tail -n 1`
+    cmd = "gh api -i repos/#{ENV.fetch("GH_ORG_NAME")}/#{@slug}/git/refs/tags --jq '.[].ref'"
+    output = `#{cmd}`
+    headers, body = output.split("\r\n\r\n", 2)
+    status_code = headers.lines.first.split[1].to_i
+    if status_code == 409
+      parsed = JSON.parse(body)
+      puts "Repository is empty, assume an empty tag."
+      return "v0.0" if parsed["message"] == "Git Repository is empty."
+    end
+    puts "GitHub returned status code #{status_code} when querying repo for semver tag." unless status_code == 200
+    latest_github_version = body
+      .lines
+      .map { |l| l.split("/").last }
+      .map { |l| l[/[0-9.]+/] }
+      .compact
+      .max_by { |v| Gem::Version.new(v) }
+
     # Assume the repo is empty and/or does not have any tags.
     return "" if latest_github_version.strip == "."
     return "" unless $CHILD_STATUS.success?
