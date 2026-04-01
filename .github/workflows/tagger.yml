@@ -50,10 +50,12 @@ jobs:
         if: ${{ failure() }}
         uses: slackapi/slack-github-action@v3
         with:
-          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}  # Slack channel id to post message
-          slack-message: "The scheduled task to apply major tags to GitHub plugin repos [EXPERIMENTAL BRANCH] has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/tagger.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          payload-templated: true
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+              channel: "${{ secrets.SLACK_CHANNEL_ID }}"
+              text: "The scheduled task to apply major tags to GitHub plugin repos [EXPERIMENTAL BRANCH] has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/tagger.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
 
   workflow-keepalive:
     if: github.event_name == 'schedule'
