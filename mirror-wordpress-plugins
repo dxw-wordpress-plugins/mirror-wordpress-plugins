@@ -338,6 +338,7 @@ class PluginLibraryUpdater
   def update
     @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     plugins = PluginUpdaterBuilder.new.build
+    plugins = plugins.shuffle
     plugins.each do |plugin|
       hrule
       puts "==> Checking status of #{plugin.slug}..."
