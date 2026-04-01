@@ -59,7 +59,7 @@ jobs:
 
       - name: Alert Slack if plugins have failed to mirror
         if: env.ALERT_SLACK == '1'
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@v3
         with:
           method: chat.postMessage
           payload-templated: true
@@ -90,7 +90,7 @@ jobs:
 
       - name: Alert Slack if failure  # Runs if the whole mirror process fails with non-zero exit code.
         if: ${{ failure() }}
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v3
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}  # Slack channel id to post message
           slack-message: "The scheduled task to mirror WordPress plugins to GitHub has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/main.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
