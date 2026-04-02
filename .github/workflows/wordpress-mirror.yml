@@ -65,37 +65,29 @@ jobs:
           payload-templated: true
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
-            {
-              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Some WordPress plugins could not be mirrored automatically!*"
-                  }
-                },
-                {
-                  "type": "divider"
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": ${{ steps.mirror.outputs.messages }}
-                  }
-                }
-              ]
-            }
+              channel: "${{ secrets.SLACK_CHANNEL_ID }}"
+              text: "Some WordPress plugins could not be mirrored automatically!"
+              blocks:
+               - type: "section"
+                 text:
+                   type: "mrkdwn"
+                   text: "*Some WordPress plugins could not be mirrored automatically!*"
+               - type: "divider"
+               - type: "section"
+                 text:
+                   type: "mrkdwn"
+                   text: ${{ steps.mirror.outputs.messages }}
 
       - name: Alert Slack if failure  # Runs if the whole mirror process fails with non-zero exit code.
         if: ${{ failure() }}
         uses: slackapi/slack-github-action@v3
         with:
-          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}  # Slack channel id to post message
-          slack-message: "The scheduled task to mirror WordPress plugins to GitHub has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/main.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          payload-templated: true
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+              channel: "${{ secrets.SLACK_CHANNEL_ID }}"
+              text: "The scheduled task to mirror WordPress plugins to GitHub has failed. Check the workflow history for more information: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/actions/workflows/main.yml, and see the documentation for possible causes: https://github.com/dxw-wordpress-plugins/mirror-gitlab-plugins/blob/main/README.md"
 
   workflow-keepalive:
     if: github.event_name == 'schedule'
