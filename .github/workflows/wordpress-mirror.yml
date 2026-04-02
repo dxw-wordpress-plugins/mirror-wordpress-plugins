@@ -53,7 +53,7 @@ jobs:
           echo "$COULD_NOT_MIRROR"
           echo "DEBUG: Length: ${#COULD_NOT_MIRROR}"
           if [ -n "$COULD_NOT_MIRROR" ]; then
-            if [[ -z "$COULD_NOT_MIRROR" ]]; then $COULD_NOT_MIRROR=":shrug:"; fi
+            if [[ -z "$COULD_NOT_MIRROR" ]]; then COULD_NOT_MIRROR=":shrug:"; fi
             echo "messages=$COULD_NOT_MIRROR" >> $GITHUB_OUTPUT
             echo 'ALERT_SLACK=1' >> $GITHUB_ENV
           fi
