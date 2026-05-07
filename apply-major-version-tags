@@ -160,7 +160,7 @@ class PluginLibraryTagger
     print_failed_plugin_summary
     hrule
     elapsed_time = @end_time - @start_time
-    puts "==> Mirroring plugins took: #{(elapsed_time / 60).round}m#{(elapsed_time % 60).round}s."
+    puts "==> Applying major version tags took: #{(elapsed_time / 60).round}m#{(elapsed_time % 60).round}s."
   end
 
   private
