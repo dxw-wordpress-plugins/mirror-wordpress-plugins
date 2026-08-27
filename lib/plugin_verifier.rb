@@ -21,8 +21,8 @@ class PluginVerifier
     "changelog.md", "changelog.txt", "Gruntfile.js", ".editorconfig", ".gitattributes",
     ".gitignore", ".git", "composer.json", "composer.lock", "package.json",
     "package.lock", "phpcs.xml.dist"]
-  # geo-my-wp v4.5.2
-  @@ignored_exts = [".mo", ".po"]
+  # geo-my-wp v4.5.2, TEC v6.17.3.1
+  @@ignored_exts = [".mo", ".po", ".gif"]
   # geo-my-wp v4.5.2 and v4.5.3
   @@ignored_dirs = ["trunk/", ".vscode/", "scripts/"]
 
