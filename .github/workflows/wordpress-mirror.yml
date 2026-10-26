@@ -3,7 +3,7 @@ name: Mirror WordPress plugins to GitHub
 on:
   workflow_dispatch:
   schedule:
-    - cron: 0 8,10,12,14,15,16 * * MON-FRI
+    - cron: 0 7,9,15,16 * * MON-FRI
       timezone: "Europe/London"
 
 jobs:
