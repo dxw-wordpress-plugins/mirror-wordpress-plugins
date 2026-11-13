@@ -86,7 +86,7 @@ end
 # array of Plugin objects.
 class PluginCollection
   @@max_repos_in_library = 99_999 # Effectively unlimited.
-  @@last_updated_range = 43_200 # 12 hours in seconds - we're going to run this more frequently than the actual mirroring, so this should be plenty
+  @@last_updated_range = 86_400 # 24 hours in seconds - we're going to run this more frequently than the actual mirroring, so this should be plenty
 
   def initialize
     @plugins = []
