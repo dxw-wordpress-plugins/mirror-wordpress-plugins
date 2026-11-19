@@ -1,4 +1,5 @@
 source "https://rubygems.org"
+ruby file: ".ruby-version"
 gem "dotenv"
 gem "standardrb"
 gem "rubyzip", require: "zip"
