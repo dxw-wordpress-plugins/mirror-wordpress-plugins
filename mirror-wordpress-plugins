@@ -237,9 +237,7 @@ class PluginUpdater
   def extract_zip(zip_file, destination)
     Zip::File.open(zip_file) do |zipfile|
       zipfile.each do |entry|
-        destination_path = File.join(destination, entry.name)
-
-        zipfile.extract(entry, destination_path)
+        zipfile.extract(entry, destination_directory: destination)
       end
     end
   rescue => e
