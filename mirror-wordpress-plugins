@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-require_relative "./lib/error_mixin"
-require_relative "./lib/plugin_verifier"
+require_relative "lib/error_mixin"
+require_relative "lib/plugin_verifier"
 
 require "bundler/setup"
 require "dotenv"
@@ -268,7 +268,7 @@ class RepositoryTopic
 
   def initialize(text, repo, prefix = "")
     clean_text = text.to_s.gsub(/[^a-z0-9\-\s]/i, "").downcase.gsub(/\s+/, "-")
-    @value = prefix.nil? || prefix.empty? ? clean_text : "#{prefix}#{@@separator}#{clean_text}"
+    @value = (prefix.nil? || prefix.empty?) ? clean_text : "#{prefix}#{@@separator}#{clean_text}"
     @repo = repo
   end
 

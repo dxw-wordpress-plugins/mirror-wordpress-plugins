@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require_relative "./lib/error_mixin"
+require_relative "lib/error_mixin"
 
 require "bundler/setup"
 require "dotenv"
