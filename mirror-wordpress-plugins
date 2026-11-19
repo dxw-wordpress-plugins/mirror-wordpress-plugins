@@ -440,7 +440,7 @@ class PluginLibraryUpdater
 
     hrule
     puts "==> Failed to update the following #{@failed_updates.size} plugin(s):"
-    slack_msg = ""
+    slack_msg = +""
     @failed_updates.each do |name, error_message|
       @plugins.each do |plugin|
         if plugin.slug == name
