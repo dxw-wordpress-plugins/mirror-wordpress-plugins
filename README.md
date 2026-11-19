@@ -16,6 +16,23 @@ There are a couple of commons causes for failures:
 
 1. The connection to GitLab times out, or returns some other unexpected response. This is normally a temporary glitch, and will resolve itself on the next workflow run.
 
+## Requirements
+
+The scripts need the Ruby version given in `.ruby-version` (currently Ruby 4.0), which the GitHub Actions workflows also use. With a version manager such as rbenv:
+
+```
+rbenv install
+bundle install
+```
+
+The scripts also need the [GitHub CLI](https://cli.github.com/) (`gh`), authenticated against an account with access to the plugins org.
+
+To check your changes against the linter that CI runs:
+
+```
+bundle exec standardrb
+```
+
 ## Testing locally
 
 You can test the action locally using [act](https://github.com/nektos/act).
