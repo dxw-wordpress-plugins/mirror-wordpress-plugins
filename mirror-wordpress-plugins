@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-require_relative "./lib/error_mixin"
-require_relative "./lib/plugin_verifier"
+require_relative "lib/error_mixin"
+require_relative "lib/plugin_verifier"
 
 require "bundler/setup"
 require "dotenv"
@@ -237,9 +237,7 @@ class PluginUpdater
   def extract_zip(zip_file, destination)
     Zip::File.open(zip_file) do |zipfile|
       zipfile.each do |entry|
-        destination_path = File.join(destination, entry.name)
-
-        zipfile.extract(entry, destination_path)
+        zipfile.extract(entry, destination_directory: destination)
       end
     end
   rescue => e
@@ -268,7 +266,7 @@ class RepositoryTopic
 
   def initialize(text, repo, prefix = "")
     clean_text = text.to_s.gsub(/[^a-z0-9\-\s]/i, "").downcase.gsub(/\s+/, "-")
-    @value = prefix.nil? || prefix.empty? ? clean_text : "#{prefix}#{@@separator}#{clean_text}"
+    @value = (prefix.nil? || prefix.empty?) ? clean_text : "#{prefix}#{@@separator}#{clean_text}"
     @repo = repo
   end
 
@@ -440,7 +438,7 @@ class PluginLibraryUpdater
 
     hrule
     puts "==> Failed to update the following #{@failed_updates.size} plugin(s):"
-    slack_msg = ""
+    slack_msg = +""
     @failed_updates.each do |name, error_message|
       @plugins.each do |plugin|
         if plugin.slug == name

@@ -1,5 +1,5 @@
 source "https://rubygems.org"
-gem "gitlab"
+ruby file: ".ruby-version"
 gem "dotenv"
-gem "standardrb"
+gem "standard"
 gem "rubyzip", require: "zip"

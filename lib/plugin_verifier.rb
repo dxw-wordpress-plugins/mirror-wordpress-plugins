@@ -1,4 +1,4 @@
-require_relative "./error_mixin"
+require_relative "error_mixin"
 
 require "digest"
 
